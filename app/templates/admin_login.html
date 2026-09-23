@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Acceso Seguro Admin</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <div class="card" style="margin-top:100px;">
+        <h2>Acceso al Panel Admin</h2>
+        <p>Se ha enviado un código OTP de 6 dígitos a su Telegram.</p>
+        {% if error %}<p style="color:red;">{{ error }}</p>{% endif %}
+        <form action="/admin/login" method="POST">
+            <input type="text" name="otp" class="input-field" placeholder="Ingrese Código OTP" required style="text-align:center; font-size:20px;">
+            <button type="submit" class="btn-pagar" style="margin-top:15px;">Ingresar</button>
+        </form>
+    </div>
+</body>
+</html>
