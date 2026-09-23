@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Resultado del Pago - Vanti</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <div class="header"></div>
+    <div class="logo-container">
+        <h1 class="logo-title">vanti<span style="color:#e2a000;">✓</span></h1>
+    </div>
+
+    <div class="card" style="text-align:center;">
+        {% if tx.estado == 'pagado' %}
+            <h2 style="color:#28a745;">¡Pago Exitoso!</h2>
+            <p>Hemos recibido su pago correctamente. Su comprobante ha sido generado.</p>
+            <div style="background:#f8f9fa; padding:15px; border-radius:8px; text-align:left; margin-top:15px;">
+                <p><b>Referencia:</b> {{ tx.referencia }}</p>
+                <p><b>Monto:</b> $ {{ "{:,}".format(tx.monto) }}</p>
+                <p><b>Estado:</b> APROBADO</p>
+            </div>
+        {% else %}
+            <h2 style="color:#dc3545;">Pago No Recibido</h2>
+            <p>No hemos podido verificar el pago realizado. Por favor intente de nuevo.</p>
+            <a href="/" class="btn-pagar" style="display:inline-block; text-decoration:none; margin-top:15px;">Volver a Pagar</a>
+        {% endif %}
+    </div>
+</body>
+</html>
