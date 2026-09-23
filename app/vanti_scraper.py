@@ -13,7 +13,7 @@ async def consultar_factura_vanti(empresa: str, referencia: str) -> dict:
         }
 
     # URL pública de tu túnel Pyngrok apuntando a tu FastAPI local en la PC
-    url_puente_local = "https://hypnotism-dude-ecosystem.ngrok-free.dev/ejecutar-scraper-local"
+    url_puente_local = "https://litmus-upfront-failing.ngrok-free.de/ejecutar-scraper-local"
     
     payload = {
         "empresa": str(empresa).strip(),
