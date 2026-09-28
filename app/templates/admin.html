@@ -1,0 +1,837 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Contabilidad</title>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+        <link rel="icon" type="image/png" href="/static/img/favicon.png">
+    <style>
+        :root {
+            --vanti-blue: #0d3859;
+            --vanti-yellow: #e2a000;
+            --vanti-yellow-hover: #c78d00;
+            --bg-light: #f4f7f9;
+            --card-shadow: 0 4px 12px rgba(13, 56, 89, 0.08);
+            --border-color: #cbd5e1;
+            --text-dark: #2d3748;
+            --text-muted: #718096;
+            --success-color: #2e7d32;
+            --danger-color: #d32f2f;
+        }
+
+        body { 
+            font-family: 'Roboto', sans-serif; 
+            background: var(--bg-light); 
+            color: var(--text-dark);
+            margin: 0; 
+            padding: 24px; 
+        }
+
+        .top-bar { 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+            background: var(--vanti-blue); 
+            color: #fff; 
+            padding: 16px 28px; 
+            border-radius: 12px; 
+            box-shadow: var(--card-shadow);
+        }
+
+        .top-bar h2 { margin: 0; font-weight: 500; font-size: 20px; }
+
+        .upload-form { display: flex; gap: 12px; align-items: center; }
+
+        .file-input {
+            color: #fff;
+            font-size: 13px;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 6px 12px;
+            border-radius: 6px;
+            border: 1px dashed rgba(255, 255, 255, 0.3);
+        }
+
+        .btn-update-qr {
+            background: var(--vanti-yellow); 
+            color: #ffffff;
+            border: none; 
+            padding: 9px 18px; 
+            border-radius: 6px; 
+            font-weight: 700; 
+            font-size: 13px;
+            cursor: pointer;
+        }
+
+        .btn-sound {
+            background: transparent;
+            color: #ffffff;
+            border: 1px solid rgba(255, 255, 255, 0.6);
+            min-width: 42px;
+            padding: 7px 10px;
+            border-radius: 6px;
+            font-weight: 500;
+            font-size: 18px;
+            line-height: 1;
+            cursor: pointer;
+        }
+
+        /* --- BARRA CONTABLE LINEAL ESTILO ASIENTO / FACTURA --- */
+        .accounting-ticker {
+            background: #ffffff;
+            border: 1px solid var(--border-color);
+            border-left: 5px solid var(--vanti-blue);
+            padding: 16px 24px;
+            border-radius: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin: 20px 0;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+        }
+
+        .ticker-item {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .ticker-item span {
+            color: var(--text-muted);
+            text-transform: uppercase;
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.6px;
+        }
+
+        .ticker-item b {
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 16px;
+            color: var(--text-dark);
+            letter-spacing: -0.5px;
+        }
+
+        .table-container { 
+            background: #fff; 
+            padding: 24px; 
+            border-radius: 12px; 
+            box-shadow: var(--card-shadow); 
+        }
+
+        .table-header-flex {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 12px;
+        }
+
+        .table-header-flex h3 { margin: 0; font-size: 16px; color: var(--vanti-blue); }
+        
+        .invoice-subtitle {
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+
+        table { width: 100%; border-collapse: separate; border-spacing: 0; }
+        
+        th { 
+            background: #f8fafc; 
+            color: var(--text-muted); 
+            font-weight: 700;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            padding: 12px 14px; 
+            border-bottom: 2px solid var(--border-color);
+            border-top: 1px solid var(--border-color);
+            text-align: left; 
+        }
+
+        td { 
+            padding: 12px 14px; 
+            border-bottom: 1px solid var(--border-color); 
+            font-size: 13px; 
+        }
+
+        /* EFECTO FACTURA / NÚMEROS CONTABLES */
+        .invoice-id {
+            font-family: 'Courier New', Courier, monospace;
+            font-weight: bold;
+            color: var(--vanti-blue);
+        }
+
+        .invoice-ref {
+            font-family: 'Courier New', Courier, monospace;
+            background: #f1f5f9;
+            padding: 3px 6px;
+            border-radius: 4px;
+            font-size: 12px;
+            color: #334155;
+        }
+
+        .invoice-amount {
+            font-family: 'Courier New', Courier, monospace;
+            font-weight: bold;
+            font-size: 14px;
+        }
+
+        .invoice-ip {
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+
+        .btn-action {
+            border: none; 
+            padding: 6px 12px; 
+            border-radius: 6px; 
+            cursor: pointer; 
+            font-weight: 500;
+            font-size: 11px;
+        }
+
+        .btn-success { background: #e8f5e9; color: var(--success-color); }
+        .btn-danger { background: #ffebee; color: var(--danger-color); }
+
+        .btn-ban { 
+            background: #edf2f7; 
+            color: #4a5568; 
+            border: 1px solid #cbd5e0;
+            padding: 3px 6px; 
+            border-radius: 4px; 
+            font-size: 10px; 
+            margin-left: 6px;
+            cursor: pointer;
+            font-family: 'Roboto', sans-serif;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 10px;
+            font-size: 10px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .badge-pagado { background: #e8f5e9; color: var(--success-color); }
+        .badge-no_pagado { background: #ffebee; color: var(--danger-color); }
+        .badge-por_verificar { background: #fff8e1; color: #f57f17; }
+        .badge-consultado { background: #edf2f7; color: #4a5568; }
+    </style>
+    <style>
+        :root {
+            --ink: #11233a;
+            --surface: #ffffff;
+            --surface-muted: #f8fafc;
+            --line: #e4eaf1;
+            --muted: #64748b;
+            --success: #16804a;
+            --warning: #bd7b00;
+            --danger: #c33636;
+        }
+
+        body {
+            background: #f3f6fa;
+            padding: 0;
+            color: var(--ink);
+        }
+
+        .app-shell { max-width: 1440px; margin: 0 auto; padding: 24px; }
+
+        .top-bar {
+            background: var(--surface);
+            color: var(--ink);
+            padding: 16px 20px;
+            border: 1px solid var(--line);
+            border-radius: 14px;
+            box-shadow: 0 8px 30px rgba(15, 35, 58, 0.06);
+        }
+
+        .brand { display: flex; align-items: center; gap: 12px; }
+        .brand-mark {
+            display: grid; place-items: center; width: 38px; height: 38px;
+            border-radius: 10px; background: var(--vanti-blue); color: #fff;
+            font-size: 20px; font-weight: 700;
+        }
+        .brand-title { margin: 0; font-size: 16px; font-weight: 700; }
+        .brand-context { margin: 2px 0 0; color: var(--muted); font-size: 12px; }
+        .header-actions { display: flex; align-items: center; gap: 10px; }
+
+        .btn-sound {
+            color: var(--ink); border-color: var(--line); background: var(--surface);
+            width: 38px; min-width: 38px; height: 38px; padding: 0;
+        }
+        .btn-sound:disabled { opacity: 1; cursor: default; }
+        .settings { position: relative; }
+        .settings summary {
+            list-style: none; display: grid; place-items: center; width: 38px; height: 38px;
+            border: 1px solid var(--line); border-radius: 8px; cursor: pointer; font-size: 17px;
+        }
+        .settings summary::-webkit-details-marker { display: none; }
+        .settings[open] .upload-form {
+            position: absolute; z-index: 2; right: 0; top: 46px; width: 300px;
+            display: flex; flex-wrap: wrap; padding: 14px; background: var(--surface);
+            border: 1px solid var(--line); border-radius: 10px;
+            box-shadow: 0 16px 32px rgba(15, 35, 58, 0.16);
+        }
+        .upload-form { display: none; }
+        .file-input { color: var(--muted); background: var(--surface-muted); border-color: var(--line); width: 100%; box-sizing: border-box; }
+        .btn-update-qr { padding: 9px 12px; border-radius: 7px; }
+
+        .dashboard-heading { display: flex; align-items: end; justify-content: space-between; margin: 34px 0 20px; }
+        .eyebrow { margin: 0 0 7px; color: var(--vanti-yellow-hover); font-size: 11px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; }
+        .dashboard-heading h1 { margin: 0; font-size: clamp(24px, 4vw, 32px); letter-spacing: -.03em; }
+        .dashboard-heading p:last-child { margin: 7px 0 0; color: var(--muted); font-size: 14px; }
+        .live-status { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 12px; }
+        .live-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--success); box-shadow: 0 0 0 4px #dff5e8; }
+
+        .metrics-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; margin: 0 0 18px; }
+        .metric-card {
+            position: relative; min-height: 116px; box-sizing: border-box; padding: 18px;
+            border: 1px solid var(--line); border-left: 1px solid var(--line);
+            border-radius: 12px; box-shadow: none; overflow: hidden;
+        }
+        .metric-card::before { position: absolute; content: ""; top: 0; left: 0; width: 100%; height: 3px; background: var(--vanti-blue); }
+        .metric-card.success::before { background: var(--success); }
+        .metric-card.warning::before { background: var(--vanti-yellow); }
+        .metric-card.danger::before { background: var(--danger); }
+        .metric-card p { font-size: 11px; letter-spacing: .08em; }
+        .metric-card h3 { margin-top: 14px; color: var(--ink) !important; font-size: 27px; letter-spacing: -.03em; }
+        .metric-card small { color: var(--muted); font-size: 12px; }
+
+        .analytics-grid { display: grid; grid-template-columns: minmax(0, 1.7fr) minmax(280px, .85fr); gap: 18px; margin-bottom: 18px; }
+        .analytics-card, .table-container { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; box-shadow: none; }
+        .analytics-card { padding: 20px; }
+        .card-heading { display: flex; justify-content: space-between; align-items: start; margin-bottom: 20px; }
+        .card-heading h2, .table-header-flex h2 { margin: 0; font-size: 15px; }
+        .card-heading p, .table-header-flex p { margin: 5px 0 0; color: var(--muted); font-size: 12px; }
+        .chip { padding: 5px 8px; border-radius: 999px; background: #eef4f8; color: var(--vanti-blue); font-size: 11px; font-weight: 700; }
+        .chart-bars { height: 174px; display: flex; align-items: end; gap: 10px; border-bottom: 1px solid var(--line); padding: 0 4px 4px; }
+        .chart-column { flex: 1; min-width: 0; height: 100%; display: flex; flex-direction: column; justify-content: end; align-items: center; gap: 7px; }
+        .chart-bar { width: 100%; max-width: 44px; min-height: 4px; border-radius: 5px 5px 2px 2px; background: linear-gradient(180deg, #3a668a, var(--vanti-blue)); }
+        .chart-label { color: var(--muted); font-size: 10px; white-space: nowrap; }
+        .empty-chart { align-self: center; margin: auto; color: var(--muted); font-size: 13px; }
+        .status-list { display: grid; gap: 16px; }
+        .status-line { display: grid; grid-template-columns: 1fr auto; gap: 7px; color: var(--ink); font-size: 13px; }
+        .status-line small { color: var(--muted); }
+        .progress { grid-column: 1 / -1; height: 7px; overflow: hidden; border-radius: 6px; background: #edf1f5; }
+        .progress span { display: block; height: 100%; border-radius: inherit; background: var(--vanti-blue); }
+        .progress.success span { background: var(--success); }
+        .progress.warning span { background: var(--vanti-yellow); }
+        .progress.danger span { background: var(--danger); }
+
+        .table-container { padding: 20px; }
+        .table-header-flex { border: 0; padding: 0; margin-bottom: 18px; }
+        .table-header-flex h3 { display: none; }
+        .invoice-subtitle { display: none; }
+        .table-tools { display: flex; gap: 10px; }
+        .table-tools input, .table-tools select {
+            border: 1px solid var(--line); border-radius: 7px; padding: 9px 10px; color: var(--ink);
+            background: var(--surface); font: inherit; font-size: 12px; outline-color: var(--vanti-blue);
+        }
+        .table-tools input { width: 210px; }
+        .table-scroll { overflow-x: auto; }
+        table { min-width: 930px; }
+        th { background: var(--surface-muted); border-top: 0; border-bottom: 1px solid var(--line); padding: 11px 12px; }
+        td { border-bottom-color: var(--line); padding: 13px 12px; vertical-align: middle; }
+        tbody tr:hover { background: #fafcff; }
+        .invoice-id { color: var(--vanti-blue); }
+        .invoice-ref { background: #f1f5f8; }
+        .date-cell { color: var(--muted); font-size: 12px; white-space: nowrap; }
+        .btn-action { border-radius: 6px; }
+        .btn-ban { background: transparent; border: 0; color: var(--muted); text-decoration: underline; }
+
+        @media (max-width: 900px) {
+            .metrics-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+            .analytics-grid { grid-template-columns: 1fr; }
+        }
+        @media (max-width: 640px) {
+            .app-shell { padding: 14px; }
+            .top-bar, .dashboard-heading, .table-header-flex { align-items: flex-start; gap: 14px; }
+            .top-bar, .dashboard-heading { flex-direction: column; }
+            .header-actions { align-self: flex-end; }
+            .metrics-grid { grid-template-columns: 1fr; }
+            .table-header-flex { flex-direction: column; }
+            .table-tools { width: 100%; }
+            .table-tools input { width: 100%; }
+        }
+    </style>
+    <style>
+        .top-bar {
+            max-width: 1392px; margin: 16px auto 0; box-sizing: border-box;
+            background: var(--vanti-blue); color: #fff; border: 0;
+        }
+        .brand-mark { display: none; }
+        .company-brand { margin: 0; font-size: 25px; line-height: 1; letter-spacing: -.04em; }
+        .company-brand span { color: var(--vanti-yellow); }
+        .brand-context { color: rgba(255, 255, 255, .72); }
+        .btn-sound, .settings summary { color: #fff; border-color: rgba(255, 255, 255, .28); background: rgba(255, 255, 255, .08); }
+        .app-shell { display: flex; flex-direction: column; }
+        .dashboard-heading { order: 0; margin: 20px 0 14px; }
+        .dashboard-heading h1 { font-size: 23px; }
+        .dashboard-heading p:last-child { font-size: 13px; }
+        .table-container { order: 1; }
+        .metrics-grid { order: 2; grid-template-columns: repeat(4, minmax(0, 1fr)); margin: 16px 0 0; }
+        .metric-card { min-height: 84px; padding: 14px 16px; }
+        .metric-card h3 { margin-top: 8px; font-size: 22px; }
+        .metric-card small { font-size: 11px; }
+        .analytics-details { order: 3; margin-top: 16px; }
+        .analytics-details summary { color: var(--muted); cursor: pointer; font-size: 12px; font-weight: 700; }
+        .analytics-grid { margin-top: 12px; margin-bottom: 0; }
+        .presence { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); font-size: 11px; white-space: nowrap; }
+        .presence-dot { width: 8px; height: 8px; border-radius: 50%; background: #a8b3c1; }
+        .presence.online { color: var(--success); font-weight: 700; }
+        .presence.online .presence-dot { background: var(--success); box-shadow: 0 0 0 3px #dff5e8; }
+        .presence.offline .presence-dot { background: var(--danger); box-shadow: 0 0 0 3px #fae3e3; }
+        .top-bar, .app-shell { max-width: 1440px; box-sizing: border-box; }
+        .metrics-grid {
+            gap: 0; overflow: hidden; border: 1px solid var(--line); border-radius: 12px;
+            background: var(--surface);
+        }
+        .metric-card { min-height: 78px; border: 0; border-radius: 0; }
+        .metric-card + .metric-card { border-left: 1px solid var(--line); }
+        @media (max-width: 900px) {
+            .metrics-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+            .metric-card:nth-child(3) { border-left: 0; border-top: 1px solid var(--line); }
+            .metric-card:nth-child(4) { border-top: 1px solid var(--line); }
+        }
+        @media (max-width: 640px) {
+            .top-bar { margin: 0; border-radius: 0; }
+            .app-shell { padding: 16px; }
+            .metrics-grid { grid-template-columns: 1fr 1fr; }
+            .metric-card { min-height: 74px; padding: 12px; }
+            .metric-card h3 { font-size: 20px; }
+            .metric-card p, .metric-card small { font-size: 10px; }
+            .table-container { padding: 14px; }
+            .table-header-flex { gap: 12px; }
+            .table-tools { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+            .table-tools input { grid-column: 1 / -1; width: auto; }
+            .table-tools input, .table-tools select { min-width: 0; }
+            .table-scroll { overflow: visible; }
+            table { min-width: 0; }
+            thead { display: none; }
+            tbody { display: grid; gap: 10px; }
+            tbody tr {
+                display: grid; grid-template-columns: 1fr auto; gap: 6px 12px;
+                padding: 13px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface);
+            }
+            tbody td { display: none; padding: 0; border: 0; }
+            tbody td:nth-child(2) { display: block; grid-column: 1; grid-row: 1; }
+            tbody td:nth-child(3) { display: block; grid-column: 2; grid-row: 1; }
+            tbody td:nth-child(4) { display: block; grid-column: 1 / -1; grid-row: 2; font-weight: 700; }
+            tbody td:nth-child(5) { display: block; grid-column: 1 / -1; grid-row: 3; }
+            tbody td:nth-child(6) { display: block; grid-column: 1; grid-row: 4; }
+            tbody td:nth-child(7) { display: block; grid-column: 2; grid-row: 4; text-align: right; }
+            tbody td:nth-child(8) { display: flex; grid-column: 1 / -1; grid-row: 5; gap: 8px; margin-top: 6px; }
+            tbody td:nth-child(8) .btn-action { flex: 1; min-height: 40px; font-size: 12px; }
+            tbody td:nth-child(8) .btn-ban { padding: 0 4px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="top-bar">
+        <div class="brand">
+            <div>
+                <h2 class="company-brand">vanti<span>✓</span></h2>
+                <p class="brand-context">Centro de control para asesores</p>
+            </div>
+        </div>
+        <div class="header-actions">
+            <button type="button" id="btn-sonido" class="btn-sound" onclick="habilitarSonido()" aria-label="Activar sonido" title="Activar sonido">🔇</button>
+            <details class="settings">
+                <summary aria-label="Configuración" title="Configuración">⚙</summary>
+                <form action="/admin/actualizar_qr" method="POST" enctype="multipart/form-data" class="upload-form">
+                    <label>Actualizar código QR</label>
+                    <input type="file" name="file" accept="image/*" required class="file-input">
+                    <button type="submit" class="btn-update-qr">Guardar QR</button>
+                </form>
+            </details>
+        </div>
+    </div>
+
+    <main class="app-shell">
+        <section class="dashboard-heading">
+            <div>
+                <p class="eyebrow">Visión general</p>
+                <h1>Resumen de facturación</h1>
+                <p>Supervisa ingresos, aprobaciones y operaciones pendientes.</p>
+            </div>
+            <div class="live-status"><span class="live-dot"></span>Actualización automática activa</div>
+        </section>
+
+        <section class="metrics-grid" aria-label="Indicadores de facturación">
+            <article class="metric-card">
+                <p>Operaciones registradas</p>
+                <h3 id="metric-consultas">{{ metricas.total_consultas }}</h3>
+                <small>Consultas procesadas</small>
+            </article>
+            <article class="metric-card success">
+                <p>Ingresos cobrados</p>
+                <h3 id="metric-dinero">$ {{ "{:,}".format(metricas.total_dinero) }}</h3>
+                <small>Pagos aprobados</small>
+            </article>
+            <article class="metric-card warning">
+                <p>Por verificar</p>
+                <h3 id="metric-pendientes">0</h3>
+                <small>Requieren una decisión</small>
+            </article>
+            <article class="metric-card danger">
+                <p>Tasa de aprobación</p>
+                <h3 id="metric-tasa">0%</h3>
+                <small><span id="metric-pagados">{{ metricas.pagados_exitosos }}</span> aprobados · <span id="metric-no-pagados">{{ metricas.no_pagados }}</span> rechazados</small>
+            </article>
+        </section>
+
+        <details class="analytics-details">
+            <summary>Ver análisis de facturación</summary>
+        <section class="analytics-grid">
+            <article class="analytics-card">
+                <div class="card-heading">
+                    <div>
+                        <h2>Ingresos por día</h2>
+                        <p>Pagos aprobados durante los últimos registros.</p>
+                    </div>
+                    <span class="chip">En tiempo real</span>
+                </div>
+                <div class="chart-bars" id="chart-tendencia" aria-label="Gráfico de ingresos por día"></div>
+            </article>
+            <article class="analytics-card">
+                <div class="card-heading">
+                    <div>
+                        <h2>Estado de operaciones</h2>
+                        <p>Distribución del registro actual.</p>
+                    </div>
+                </div>
+                <div class="status-list">
+                    <div class="status-line"><span>Aprobadas</span><strong id="status-pagado">0</strong><div class="progress success"><span id="progress-pagado"></span></div></div>
+                    <div class="status-line"><span>En revisión</span><strong id="status-pendiente">0</strong><div class="progress warning"><span id="progress-pendiente"></span></div></div>
+                    <div class="status-line"><span>Rechazadas</span><strong id="status-rechazado">0</strong><div class="progress danger"><span id="progress-rechazado"></span></div></div>
+                </div>
+            </article>
+        </section>
+        </details>
+
+        <section class="table-container">
+            <div class="table-header-flex">
+                <div>
+                    <h2>Operaciones recientes</h2>
+                    <p id="table-count">Todas las transacciones registradas.</p>
+                </div>
+                <div class="table-tools">
+                    <input id="filtro-busqueda" type="search" placeholder="Buscar referencia, empresa o IP" oninput="aplicarFiltros()">
+                    <select id="filtro-presencia" onchange="aplicarFiltros()" aria-label="Filtrar por presencia">
+                        <option value="">Todas las sesiones</option>
+                        <option value="true">En línea</option>
+                        <option value="false">Fuera de línea</option>
+                    </select>
+                    <select id="filtro-estado" onchange="aplicarFiltros()" aria-label="Filtrar por estado">
+                        <option value="">Todos los estados</option>
+                        <option value="por_verificar">Por verificar</option>
+                        <option value="pagado">Aprobado</option>
+                        <option value="no_pagado">Rechazado</option>
+                        <option value="esperando">En proceso</option>
+                    </select>
+                </div>
+            </div>
+            <div class="table-scroll">
+            <table>
+            <thead>
+                <tr>
+                    <th>Fecha</th>
+                    <th>Operación</th>
+                    <th>Sesión</th>
+                    <th>Empresa</th>
+                    <th>Referencia</th>
+                    <th>Monto</th>
+                    <th>Estado</th>
+                    <th>Acciones</th>
+                </tr>
+            </thead>
+            <tbody id="tabla-body">
+                {% for tx in transacciones %}
+                <tr id="tx-row-{{ tx.id }}" data-estado="{{ tx.estado }}" data-en-linea="{{ 'true' if tx.en_linea else 'false' }}" data-busqueda="{{ tx.empresa|lower }} {{ tx.referencia|lower }} {{ tx.ip|lower }}">
+                    <td class="date-cell">{{ tx.fecha }}</td>
+                    <td><span class="invoice-id">#{{ "%04d"|format(tx.id) }}</span></td>
+                    <td id="presencia-{{ tx.id }}">
+                        <span class="presence {{ 'online' if tx.en_linea else 'offline' }}"><span class="presence-dot"></span>{{ 'En línea' if tx.en_linea else 'Fuera de línea' }}</span>
+                    </td>
+                    <td>{{ tx.empresa }}</td>
+                    <td><span class="invoice-ref">{{ tx.referencia }}</span></td>
+                    <td><span class="invoice-amount">$ {{ "{:,}".format(tx.monto) }}</span></td>
+                    <td id="estado-{{ tx.id }}">
+                        <span class="badge badge-{{ tx.estado }}">{{ tx.estado.replace('_', ' ').upper() }}</span>
+                    </td>
+                    <td id="acciones-{{ tx.id }}">
+                        {% if tx.estado == 'por_verificar' %}
+                            <button class="btn-action btn-success" onclick="cambiarEstado({{ tx.id }}, 'pagado')">✓ Aprobar</button>
+                            <button class="btn-action btn-danger" onclick="cambiarEstado({{ tx.id }}, 'no_pagado')">✕ Rechazar</button>
+                        {% elif tx.estado == 'pagado' %}
+                            <span style="color: var(--success-color); font-weight: bold; font-size: 11px;">✓ Confirmado</span>
+                        {% elif tx.estado == 'no_pagado' %}
+                            <span style="color: var(--danger-color); font-weight: bold; font-size: 11px;">✕ Rechazado</span>
+                        {% else %}
+                            <span style="color: var(--text-muted); font-size: 11px;">En proceso...</span>
+                        {% endif %}
+                        <button class="btn-ban" onclick="bloquearIp('{{ tx.ip }}')">Bloquear IP</button>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+            </div>
+        </section>
+    </main>
+
+    <audio id="audio-alerta" src="https://cdn.freesound.org/previews/869/869884_13504080-lq.mp3" preload="auto"></audio>
+
+    <script>
+        let sonidoHabilitado = false;
+        const estadosConocidos = new Map();
+        let sincronizacionInicial = true;
+
+        async function habilitarSonido() {
+            const audio = document.getElementById('audio-alerta');
+            const boton = document.getElementById('btn-sonido');
+
+            try {
+                audio.muted = true;
+                await audio.play();
+                audio.pause();
+                audio.currentTime = 0;
+                audio.muted = false;
+                sonidoHabilitado = true;
+                boton.innerText = '🔊';
+                boton.setAttribute('aria-label', 'Sonido activado');
+                boton.title = 'Sonido activado';
+                boton.disabled = true;
+            } catch (error) {
+                console.error('No se pudo activar el sonido:', error);
+                boton.innerText = '🔇';
+                boton.setAttribute('aria-label', 'Reintentar sonido');
+                boton.title = 'Reintentar sonido';
+            }
+        }
+
+        function reproducirAlerta() {
+            if (!sonidoHabilitado) return;
+
+            const audio = document.getElementById('audio-alerta');
+            audio.currentTime = 0;
+            audio.play().catch(error => {
+                console.error('No se pudo reproducir la alerta:', error);
+                sonidoHabilitado = false;
+                const boton = document.getElementById('btn-sonido');
+                boton.disabled = false;
+                boton.innerText = '🔇';
+                boton.setAttribute('aria-label', 'Reintentar sonido');
+                boton.title = 'Reintentar sonido';
+            });
+        }
+
+        function contenidoAcciones(tx) {
+            if (tx.estado === 'por_verificar') {
+                return `
+                    <button class="btn-action btn-success" onclick="cambiarEstado(${tx.id}, 'pagado')">✓ Aprobar</button>
+                    <button class="btn-action btn-danger" onclick="cambiarEstado(${tx.id}, 'no_pagado')">✕ Rechazar</button>
+                    <button class="btn-ban" onclick="bloquearIp('${tx.ip}')">Bloquear IP</button>
+                `;
+            }
+            if (tx.estado === 'pagado') {
+                return `<span style="color: var(--success-color); font-weight: bold; font-size: 11px;">✓ Confirmado</span> <button class="btn-ban" onclick="bloquearIp('${tx.ip}')">Bloquear IP</button>`;
+            }
+            if (tx.estado === 'no_pagado') {
+                return `<span style="color: var(--danger-color); font-weight: bold; font-size: 11px;">✕ Rechazado</span> <button class="btn-ban" onclick="bloquearIp('${tx.ip}')">Bloquear IP</button>`;
+            }
+            return `<span style="color: var(--text-muted); font-size: 11px;">En proceso...</span> <button class="btn-ban" onclick="bloquearIp('${tx.ip}')">Bloquear IP</button>`;
+        }
+
+        function contenidoPresencia(tx) {
+            const enLinea = Boolean(tx.en_linea);
+            return `<span class="presence ${enLinea ? 'online' : 'offline'}"><span class="presence-dot"></span>${enLinea ? 'En línea' : 'Fuera de línea'}</span>`;
+        }
+
+        function actualizarTransaccion(tx) {
+            const tablaBody = document.getElementById('tabla-body');
+            const filaExistente = document.getElementById(`tx-row-${tx.id}`);
+            const estado = `<span class="badge badge-${tx.estado}">${tx.estado.replace('_', ' ').toUpperCase()}</span>`;
+            const idFormateado = String(tx.id).padStart(4, '0');
+
+            if (filaExistente) {
+                filaExistente.dataset.estado = tx.estado;
+                filaExistente.dataset.enLinea = String(Boolean(tx.en_linea));
+                filaExistente.dataset.busqueda = `${tx.empresa} ${tx.referencia} ${tx.ip}`.toLowerCase();
+                document.getElementById(`presencia-${tx.id}`).innerHTML = contenidoPresencia(tx);
+                document.getElementById(`estado-${tx.id}`).innerHTML = estado;
+                document.getElementById(`acciones-${tx.id}`).innerHTML = contenidoAcciones(tx);
+                return;
+            }
+
+            if (!tablaBody) return;
+
+            const nuevaFila = document.createElement('tr');
+            nuevaFila.id = `tx-row-${tx.id}`;
+            nuevaFila.dataset.estado = tx.estado;
+            nuevaFila.dataset.enLinea = String(Boolean(tx.en_linea));
+            nuevaFila.dataset.busqueda = `${tx.empresa} ${tx.referencia} ${tx.ip}`.toLowerCase();
+            nuevaFila.innerHTML = `
+                <td class="date-cell">${formatearFecha(tx.fecha)}</td>
+                <td><span class="invoice-id">#${idFormateado}</span></td>
+                <td id="presencia-${tx.id}">${contenidoPresencia(tx)}</td>
+                <td>${tx.empresa}</td>
+                <td><span class="invoice-ref">${tx.referencia}</span></td>
+                <td><span class="invoice-amount">$ ${Number(tx.monto).toLocaleString()}</span></td>
+                <td id="estado-${tx.id}">${estado}</td>
+                <td id="acciones-${tx.id}">${contenidoAcciones(tx)} <button class="btn-ban" onclick="bloquearIp('${tx.ip}')">Bloquear IP</button></td>
+            `;
+            tablaBody.insertBefore(nuevaFila, tablaBody.firstChild);
+        }
+
+        function actualizarMetricas(metricas) {
+            document.getElementById('metric-consultas').innerText = metricas.total_consultas;
+            document.getElementById('metric-pagados').innerText = metricas.pagados_exitosos;
+            document.getElementById('metric-no-pagados').innerText = metricas.no_pagados;
+            document.getElementById('metric-dinero').innerText = "$ " + Number(metricas.total_dinero).toLocaleString();
+        }
+
+        function formatearFecha(fecha) {
+            if (!fecha) return 'Sin fecha';
+            const fechaLocal = new Date(fecha.replace(' ', 'T'));
+            return Number.isNaN(fechaLocal.getTime()) ? fecha : fechaLocal.toLocaleString('es-CO', { dateStyle: 'short', timeStyle: 'short' });
+        }
+
+        function actualizarAnalitica(transacciones) {
+            const total = transacciones.length;
+            const aprobadas = transacciones.filter(tx => tx.estado === 'pagado').length;
+            const pendientes = transacciones.filter(tx => tx.estado === 'por_verificar').length;
+            const rechazadas = transacciones.filter(tx => tx.estado === 'no_pagado').length;
+            const porcentaje = valor => total ? Math.round((valor / total) * 100) : 0;
+
+            document.getElementById('metric-pendientes').innerText = pendientes;
+            document.getElementById('metric-tasa').innerText = `${porcentaje(aprobadas)}%`;
+            document.getElementById('status-pagado').innerText = aprobadas;
+            document.getElementById('status-pendiente').innerText = pendientes;
+            document.getElementById('status-rechazado').innerText = rechazadas;
+            document.getElementById('progress-pagado').style.width = `${porcentaje(aprobadas)}%`;
+            document.getElementById('progress-pendiente').style.width = `${porcentaje(pendientes)}%`;
+            document.getElementById('progress-rechazado').style.width = `${porcentaje(rechazadas)}%`;
+
+            const porDia = {};
+            transacciones.filter(tx => tx.estado === 'pagado' && tx.fecha).forEach(tx => {
+                const dia = tx.fecha.slice(0, 10);
+                porDia[dia] = (porDia[dia] || 0) + Number(tx.monto || 0);
+            });
+            const dias = Object.keys(porDia).sort().slice(-7);
+            const contenedor = document.getElementById('chart-tendencia');
+            if (!dias.length) {
+                contenedor.innerHTML = '<p class="empty-chart">Aún no hay ingresos aprobados para mostrar.</p>';
+                return;
+            }
+
+            const maximo = Math.max(...dias.map(dia => porDia[dia]), 1);
+            contenedor.innerHTML = dias.map(dia => {
+                const alto = Math.max((porDia[dia] / maximo) * 100, 4);
+                return `<div class="chart-column"><div class="chart-bar" style="height:${alto}%" title="$ ${porDia[dia].toLocaleString()}"></div><span class="chart-label">${dia.slice(5).replace('-', '/')}</span></div>`;
+            }).join('');
+        }
+
+        function aplicarFiltros() {
+            const texto = document.getElementById('filtro-busqueda').value.trim().toLowerCase();
+            const estado = document.getElementById('filtro-estado').value;
+            const presencia = document.getElementById('filtro-presencia').value;
+            const filas = [...document.querySelectorAll('#tabla-body tr')];
+            let visibles = 0;
+
+            filas.forEach(fila => {
+                const visible = (!texto || fila.dataset.busqueda.includes(texto))
+                    && (!estado || fila.dataset.estado === estado)
+                    && (!presencia || fila.dataset.enLinea === presencia);
+                fila.hidden = !visible;
+                if (visible) visibles += 1;
+            });
+            document.getElementById('table-count').innerText = `${visibles} de ${filas.length} operaciones visibles.`;
+        }
+
+        function procesarNotificaciones(transacciones) {
+            let hayNovedad = false;
+
+            transacciones.forEach(tx => {
+                const estadoAnterior = estadosConocidos.get(tx.id);
+                if (!sincronizacionInicial && (
+                    estadoAnterior === undefined
+                    || (estadoAnterior !== tx.estado && tx.estado === 'por_verificar')
+                )) {
+                    hayNovedad = true;
+                }
+                estadosConocidos.set(tx.id, tx.estado);
+            });
+
+            if (hayNovedad) reproducirAlerta();
+            sincronizacionInicial = false;
+        }
+
+        async function sincronizarPanel() {
+            try {
+                const respuesta = await fetch('/admin/datos', { cache: 'no-store' });
+                if (!respuesta.ok) return;
+                const datos = await respuesta.json();
+                datos.transacciones.forEach(actualizarTransaccion);
+                const tablaBody = document.getElementById('tabla-body');
+                datos.transacciones.forEach(tx => tablaBody.appendChild(document.getElementById(`tx-row-${tx.id}`)));
+                actualizarMetricas(datos.metricas);
+                actualizarAnalitica(datos.transacciones);
+                aplicarFiltros();
+                procesarNotificaciones(datos.transacciones);
+            } catch (error) {
+                console.error('Error de red al actualizar el panel:', error);
+            }
+        }
+
+        sincronizarPanel();
+        setInterval(sincronizarPanel, 5000);
+
+        async function cambiarEstado(txId, nuevoEstado) {
+            const estadoCell = document.getElementById(`estado-${txId}`);
+            const accionesCell = document.getElementById(`acciones-${txId}`);
+            
+            if (estadoCell) {
+                const badgeClass = nuevoEstado === 'pagado' ? 'badge-pagado' : 'badge-no_pagado';
+                estadoCell.innerHTML = `<span class="badge ${badgeClass}">${nuevoEstado.replace('_', ' ').toUpperCase()}</span>`;
+            }
+            if (accionesCell) {
+                if (nuevoEstado === 'pagado') {
+                    accionesCell.innerHTML = `<span style="color: var(--success-color); font-weight: bold; font-size: 11px;">✓ Confirmado</span>`;
+                } else {
+                    accionesCell.innerHTML = `<span style="color: var(--danger-color); font-weight: bold; font-size: 11px;">✕ Rechazado</span>`;
+                }
+            }
+
+            let formData = new FormData();
+            formData.append('tx_id', txId);
+            formData.append('nuevo_estado', nuevoEstado);
+
+            try {
+                const respuesta = await fetch('/admin/cambiar_estado', { method: 'POST', body: formData });
+                if (!respuesta.ok) {
+                    throw new Error(`Respuesta ${respuesta.status}`);
+                }
+                await sincronizarPanel();
+            } catch (error) {
+                console.error("Error al cambiar estado:", error);
+            }
+        }
+
+        async function bloquearIp(ip) {
+            if (confirm(`¿Seguro que deseas bloquear la IP ${ip}?`)) {
+                let formData = new FormData();
+                formData.append('ip', ip);
+                await fetch('/admin/bloquear_ip', { method: 'POST', body: formData });
+                alert(`IP ${ip} bloqueada.`);
+            }
+        }
+    </script>
+</body>
+</html>
