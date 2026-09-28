@@ -1,7 +1,0 @@
-fastapi
-uvicorn[standard]
-jinja2
-playwright
-python-multipart
-requests
-httpx
