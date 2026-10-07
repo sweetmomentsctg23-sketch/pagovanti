@@ -25,7 +25,7 @@ async def consultar_factura_vanti(empresa: str, referencia: str) -> dict:
         }
 
     # URL pública de tu túnel Pyngrok apuntando a tu FastAPI local en la PC
-    url_puente_local = "https://hypnotism-dude-ecosystem.ngrok-free.dev/ejecutar-scraper-local"
+    url_puente_local = "https://encircle-dilation-shortcake.ngrok-free.dev/ejecutar-scraper-local"
     
     payload = {
         "empresa": str(empresa).strip(),
@@ -53,7 +53,7 @@ async def consultar_factura_vanti(empresa: str, referencia: str) -> dict:
 
 # Mantenemos compatibilidad si alguna otra parte del sistema llama a la función sincrónica
 def _consultar_factura_vanti_sync(empresa: str, referencia: str) -> dict:
-    url_puente_local = "https://hypnotism-dude-ecosystem.ngrok-free.dev/ejecutar-scraper-local"
+    url_puente_local = "https://encircle-dilation-shortcake.ngrok-free.dev/ejecutar-scraper-local"
     payload = {
         "empresa": str(empresa).strip(),
         "referencia": str(referencia).strip()
