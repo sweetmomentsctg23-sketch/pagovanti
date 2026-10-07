@@ -3,63 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pago PSE - Vanti</title>
+    <title>Pasarela de Pago - Vanti</title>
     <link rel="stylesheet" href="/static/css/style.css">
-    <style>
-        .form-grupo { margin-bottom: 14px; text-align: left; }
-        .form-grupo label { display: block; font-size: 13px; font-weight: 600; color: #334155; margin-bottom: 5px; }
-        .form-grupo input { width: 100%; }
-        .form-grupo select {
-            width: 94%; padding: 11px 12px; 
-    margin-bottom: 14px;
-    text-align: left;
-}
-
-.form-grupo label {
-    display: block;
-    font-size: 13px;
-    font-weight: 600;
-    color: #334155;
-    margin-bottom: 5px;
-}
-
-.form-grupo input,
-.form-grupo select {
-    width: 100%;
-    box-sizing: border-box;
-    padding: 11px 12px;
-    border: 1px solid #cbd5e1;
-    border-radius: 8px;
-    font-size: 14px;
-    color: #1e293b;
-    background: #fff;
-    outline: none;
-}
-
-.form-grupo input:focus,
-.form-grupo select:focus {
-    border-color: #0d3859;
-    box-shadow: 0 0 0 3px rgba(13, 56, 89, .12);
-}
-
-.form-fila {
-    display: flex;
-    gap: 12px;
-}
-
-.form-fila .form-grupo {
-    flex: 1;
-    min-width: 0;
-}
-        #overlay-pse {
-            position: fixed; inset: 0; background: rgba(13,56,89,.92); display: none;
-            flex-direction: column; align-items: center; justify-content: center; z-index: 9999;
-            color: #fff; text-align: center;
-        }
-        .spinner-pse { width: 50px; height: 50px; border: 5px solid #f3f3f3; border-top: 5px solid #e2a000;
-            border-radius: 50%; animation: spin 1s linear infinite; margin-bottom: 20px; }
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-    </style>
+<script type="text/javascript" src="https://checkout.epayco.co/checkout.js"></script>
 </head>
 <body>
     <div class="header"></div>
@@ -68,86 +14,18 @@
     </div>
 
     <div class="card" style="max-width: 520px; margin: 20px auto; text-align: left; padding: 25px;">
-        <h3 style="color:#0d3859; text-align: center; margin-top: 0;">Pago con PSE</h3>
+        <h3 style="color:#0d3859; text-align: center; margin-top: 0;">Resumen de Pago</h3>
         <p><b>Referencia:</b> {{ referencia }}</p>
         <p><b>Total a pagar:</b> $ {{ "{:,}".format(monto) }}</p>
 
         <hr style="border: 0; border-top: 1px solid #e2e8f0; margin: 15px 0;">
 
-        {% if error %}
-        <p style="color:#b91c1c; font-size:14px; background:#fee2e2; padding:10px; border-radius:8px;">{{ error }}</p>
-        {% endif %}
-
-        {% if not bancos %}
-        <p style="color:#b91c1c; font-size:14px; background:#fee2e2; padding:10px; border-radius:8px;">
-            No se pudo cargar la lista de bancos. Recarga la página e inténtalo de nuevo.
-        </p>
-        {% endif %}
-
-        <form action="/pagar-pse" method="POST" onsubmit="mostrarCargando()">
-            <input type="hidden" name="tx_id" value="{{ tx_id }}">
-
-            <div class="form-grupo">
-                <label for="banco">Banco</label>
-                <select id="banco" name="banco" required>
-                    <option value="" disabled selected>Selecciona tu banco</option>
-                    {% for b in bancos %}
-                    <option value="{{ b.financial_institution_code }}">{{ b.financial_institution_name }}</option>
-                    {% endfor %}
-                </select>
-            </div>
-
-            <div class="form-fila">
-                <div class="form-grupo">
-                    <label for="tipo_persona">Tipo de persona</label>
-                    <select id="tipo_persona" name="tipo_persona" required>
-                        <option value="0" selected>Natural</option>
-                        <option value="1">Jurídica</option>
-                    </select>
-                </div>
-                <div class="form-grupo">
-                    <label for="tipo_doc">Tipo de documento</label>
-                    <select id="tipo_doc" name="tipo_doc" required>
-                        <option value="CC" selected>C.C.</option>
-                        <option value="NIT">NIT</option>
-                        <option value="CE">C.E.</option>
-                    </select>
-                </div>
-            </div>
-
-            <div class="form-grupo">
-                <label for="documento">Número de documento</label>
-                <input type="text" id="documento" name="documento" inputmode="numeric" autocomplete="off" required>
-            </div>
-
-            <div class="form-grupo">
-                <label for="nombre">Nombre completo</label>
-                <input type="text" id="nombre" name="nombre" autocomplete="name" required>
-            </div>
-
-            <div class="form-grupo">
-                <label for="email">Correo electrónico</label>
-                <input type="email" id="email" name="email" autocomplete="email" required>
-            </div>
-
-            <div class="form-grupo">
-                <label for="telefono">Teléfono celular</label>
-                <input type="tel" id="telefono" name="telefono" inputmode="tel" autocomplete="tel" placeholder="3001234567" required>
-            </div>
-
-            <button id="btn-pagar" type="submit" {% if not bancos %}disabled{% endif %} style="background: #16a34a; color: #fff; border: none; width: 100%; padding: 14px; border-radius: 6px; font-size: 17px; font-weight: 500; cursor: pointer;">
-                Ir a mi banco
-            </button>
-        </form>
+        <button id="btn-pagar" onclick="pagarConEpayco()" style="background: #16a34a; color: #fff; border: none; width: 100%; padding: 14px; border-radius: 6px; font-size: 17px; font-weight: 500; cursor: pointer;">
+           Ir a pagar
+        </button>
         <p style="text-align: center; font-size: 13px; color: #64748b; margin: 12px 0 0;">
-            Serás redirigido a la página segura de tu banco para completar el pago PSE.
+            Serás dirigido a la pasarela segura de Epayco para completar tu pago PSE.
         </p>
-    </div>
-
-    <div id="overlay-pse">
-        <div class="spinner-pse"></div>
-        <h2>Conectando con tu banco...</h2>
-        <p style="max-width: 300px; color: #cbd5e1;">Por favor espera un momento.</p>
     </div>
 
 <script>
@@ -156,8 +34,40 @@
     registrarActividad();
     setInterval(registrarActividad, 5000);
 
-    function mostrarCargando() {
-        document.getElementById('overlay-pse').style.display = 'flex';
+    // Configuración del handler de ePayco con tu PUBLIC KEY
+    const handler = ePayco.checkout.configure({
+        key: '{{ epayco_public_key }}',
+        test: {{ epayco_test }}
+    });
+
+    function pagarConEpayco() {
+        if (typeof ePayco === "undefined") {
+            alert("No se pudo cargar la pasarela de pagos. Revisa tu conexión e inténtalo de nuevo.");
+            return;
+        }
+
+        const data = {
+            // Datos del pago
+            name: "Pago Factura Vanti",
+            description: "Factura Ref: {{ referencia }}",
+            invoice: "{{ ref_epayco }}",
+            currency: "cop",
+            amount: "{{ monto }}", // ePayco recibe el valor normal en COP (ej. 100000), no en centavos
+            tax_base: "0",
+            tax: "0",
+            country: "co",
+            lang: "es",
+
+            // Configuración visual
+            external: "false", // 'false' abre el modal emergente dentro de tu web
+
+            // Redirección al finalizar
+            response: window.location.origin + "/resultado/{{ tx_id }}",
+            confirmation: window.location.origin + "/notificar_pago"
+        };
+
+        // Abre la pasarela de pago
+        handler.open(data);
     }
 </script>
 </body>
