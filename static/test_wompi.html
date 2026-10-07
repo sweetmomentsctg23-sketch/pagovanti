@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pasarela de Pago - Vanti</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <script src="https://checkout.wompi.co/widget.js"></script>
+</head>
+<body>
+    <div class="header"></div>
+    <div class="logo-container">
+        <h1 class="logo-title">vanti<span style="color:#e2a000;">✓</span></h1>
+    </div>
+
+    <div class="card" style="max-width: 520px; margin: 20px auto; text-align: left; padding: 25px;">
+        <h3 style="color:#0d3859; text-align: center; margin-top: 0;">Resumen de Pago</h3>
+        <p><b>Referencia:</b> 61743859</p>
+        <p><b>Total a pagar:</b> $ 100,000</p>
+
+        <hr style="border: 0; border-top: 1px solid #e2e8f0; margin: 15px 0;">
+
+        <button id="btn-pagar" onclick="pagarConWompi()" style="background: #16a34a; color: #fff; border: none; width: 100%; padding: 14px; border-radius: 6px; font-size: 17px; font-weight: 500; cursor: pointer;">
+            Pagar con PSE
+        </button>
+        <p style="text-align: center; font-size: 13px; color: #64748b; margin: 12px 0 0;">
+            Serás dirigido a la pasarela segura de Wompi para completar tu pago PSE.
+        </p>
+    </div>
+
+<script>
+    const txId = "2";
+    const registrarActividad = () => navigator.sendBeacon(`/actividad/${txId}`);
+    registrarActividad();
+    setInterval(registrarActividad, 5000);
+
+    function pagarConWompi() {
+        if (typeof WidgetCheckout === "undefined") {
+            alert("No se pudo cargar la pasarela de pagos. Revisa tu conexión e inténtalo de nuevo.");
+            return;
+        }
+
+        const checkout = new WidgetCheckout({
+            currency: "COP",
+            amountInCents: 10000000,
+            reference: "61743859-2",
+            publicKey: "pub_prod_FsiTqeGXyw5wOyIZcC5bPVRqnzEIIDvD",
+            signature: { integrity: "54c6d1eb3d90d9e89104924d6f9c0446563655cb3f25d4ced0f7845f9790fed2" },
+            redirectUrl: window.location.origin + "/resultado/2"
+        });
+
+        checkout.open(function (result) {
+            const transaction = result.transaction;
+            console.log("Transacción Wompi:", transaction);
+            if (transaction && transaction.status === "APPROVED") {
+                window.location.href = "/resultado/2?id=" + transaction.id;
+            }
+        });
+    }
+</script>
+</body>
+</html>
