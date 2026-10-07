@@ -7,6 +7,7 @@ import json
 import time
 import hashlib
 import requests
+import httpx
 from typing import List
 
 # Credenciales ePayco (Producción)
@@ -16,6 +17,13 @@ EPAYCO_P_KEY = "e934b987624597d78a2ad09aaf880a8babce2636"                    # C
 EPAYCO_PRIVATE_KEY = "c40c89c21f5f056e15cf94f3d62d7b41"        # Copias el valor de PRIVATE_KEY (opcional para API backend)
 
 EPAYCO_TEST_MODE = "false"                        # "false" porque estás en Producción
+
+# Credenciales Wompi (Producción)
+WOMPI_PUBLIC_KEY = "pub_prod_I2vRHmQCy40mg1ufOy1DG4da07FgbS5J"
+WOMPI_PRIVATE_KEY = "prv_prod_lLAzYgRZ1yV0vjExGRP0dBRBSfQS5ohE"
+WOMPI_EVENTS_SECRET = "prod_events_K7sDaMgAnc4ykW0rNKBcTumnDbh2NJKh"
+WOMPI_INTEGRITY_SECRET = "prod_integrity_sVUtOOGSG3VnAgch4HGizye8bS7OMgiw"
+WOMPI_API = "https://production.wompi.co/v1"
 
 # 1. Configurar política de Event Loop para Windows ANTES de iniciar tareas asíncronas
 if sys.platform == 'win32':
@@ -96,10 +104,10 @@ async def index(request: Request):
 
 @app.get("/pagar-demo", response_class=HTMLResponse)
 async def pagar_demo(request: Request, referencia: str = "61743859", monto: float = 100000):
-    """Ruta de prueba: crea una transacción y muestra el checkout con ePayco."""
+    """Ruta de prueba: crea una transacción y muestra el checkout PSE con Wompi."""
     tx_id = guardar_transaccion("79", referencia, monto, get_client_ip(request))
-    ref_epayco = f"{referencia}-{tx_id}"
-    
+    bancos = await _obtener_bancos_pse()
+
     return templates.TemplateResponse(
         request=request, name="checkout.html",
         context={
@@ -107,10 +115,8 @@ async def pagar_demo(request: Request, referencia: str = "61743859", monto: floa
             "referencia": referencia,
             "monto": int(monto),
             "empresa": "79",
-            "ref_epayco": ref_epayco,
-            "epayco_public_key": EPAYCO_PUBLIC_KEY,
-            "epayco_p_cust_id": EPAYCO_P_CUST_ID_CLIENT,
-            "epayco_test": EPAYCO_TEST_MODE
+            "bancos": bancos,
+            "error": None
         }
     )
 
@@ -162,8 +168,8 @@ async def consultar(
             }
         )
 
-    # Flujo por defecto (PSE): mostrar pasarela de pago ePayco
-    ref_epayco = f"{referencia}-{tx_id}"
+    # Flujo por defecto (PSE): checkout directo a PSE con Wompi
+    bancos = await _obtener_bancos_pse()
     return templates.TemplateResponse(
         request=request, name="checkout.html",
         context={
@@ -171,10 +177,8 @@ async def consultar(
             "referencia": referencia,
             "monto": int(monto),
             "empresa": empresa,
-            "ref_epayco": ref_epayco,
-            "epayco_public_key": EPAYCO_PUBLIC_KEY,
-            "epayco_p_cust_id": EPAYCO_P_CUST_ID_CLIENT,
-            "epayco_test": EPAYCO_TEST_MODE
+            "bancos": bancos,
+            "error": None
         }
     )
 
@@ -294,16 +298,27 @@ async def estado_pago(tx_id: int):
     return {"tx_id": tx_id, "estado": tx["estado"]}
 
 @app.get("/resultado/{tx_id}", response_class=HTMLResponse)
-async def resultado_pago(request: Request, tx_id: int):
-    """Página a la que vuelve el cliente tras pagar (response en checkout.html).
+async def resultado_pago(request: Request, tx_id: int, id: str = ""):
+    """Página a la que vuelve el cliente tras pagar en el banco (redirect_url de Wompi).
 
-    Si la confirmación de ePayco ya llegó -> muestra '¡Pago Exitoso!' (estado.html).
-    Si aún no llega -> muestra la pantalla de espera (esperando.html), que sondea
-    /estado_pago/{tx_id} cada 3s y redirige aquí de nuevo al confirmarse.
+    Si viene ?id=<transacción Wompi>, verifica el estado real contra la API de
+    Wompi al instante. Si ya está confirmado -> '¡Pago Exitoso!' (estado.html);
+    si aún no -> pantalla de espera (esperando.html) que sondea /estado_pago.
     """
     tx = obtener_transaccion(tx_id)
     if not tx:
         return RedirectResponse(url="/", status_code=303)
+
+    # El cliente regresa del banco: verificar el estado real contra Wompi ya mismo
+    if id and tx["estado"] not in ("pagado", "no_pagado"):
+        try:
+            data = (await _wompi_get(f"/transactions/{id}")).get("data") or {}
+            # Seguridad: la referencia de Wompi debe corresponder a esta tx
+            if str(data.get("reference", "")).rsplit("-", 1)[-1] == str(tx_id):
+                await _aplicar_estado_wompi(tx_id, data, "redireccion")
+                tx = obtener_transaccion(tx_id)
+        except Exception as e:
+            print(f"⚠️ [Wompi] No se pudo verificar la transacción {id}: {e}")
 
     if tx["estado"] in ("pagado", "no_pagado"):
         return templates.TemplateResponse(
@@ -312,6 +327,238 @@ async def resultado_pago(request: Request, tx_id: int):
     return templates.TemplateResponse(
         request=request, name="esperando.html", context={"tx_id": tx_id}
     )
+
+# --- PAGO PSE DIRECTO CON WOMPI ---
+
+async def _wompi_get(path: str) -> dict:
+    """GET autenticado con la llave pública a la API de Wompi."""
+    async with httpx.AsyncClient(timeout=15) as client:
+        r = await client.get(
+            f"{WOMPI_API}{path}",
+            headers={"Authorization": f"Bearer {WOMPI_PUBLIC_KEY}"}
+        )
+        return r.json() or {}
+
+async def _obtener_bancos_pse() -> list:
+    """Lista de instituciones financieras PSE desde la API de Wompi."""
+    try:
+        data = await _wompi_get("/pse/financial_institutions")
+        return data.get("data") or []
+    except Exception as e:
+        print(f"⚠️ [Wompi] No se pudo obtener la lista de bancos: {e}")
+        return []
+
+def _firma_integridad_wompi(referencia: str, monto_centavos: int) -> str:
+    cadena = f"{referencia}{monto_centavos}COP{WOMPI_INTEGRITY_SECRET}"
+    return hashlib.sha256(cadena.encode("utf-8")).hexdigest()
+
+def _firma_evento_wompi_valida(evento: dict) -> bool:
+    """Valida el checksum de un evento Wompi con el secreto de eventos."""
+    try:
+        firma = evento["signature"]
+        valores = ""
+        for prop in firma["properties"]:
+            nodo = evento["data"]
+            for parte in prop.split("."):
+                nodo = nodo[parte]
+            valores += str(nodo)
+        esperada = hashlib.sha256(
+            (valores + str(evento["timestamp"]) + WOMPI_EVENTS_SECRET).encode("utf-8")
+        ).hexdigest()
+        return esperada == firma["checksum"]
+    except Exception:
+        return False
+
+WOMPI_STATUS_A_ESTADO = {
+    "APPROVED": "pagado",
+    "DECLINED": "no_pagado",
+    "ERROR": "no_pagado",
+    "VOIDED": "no_pagado",
+    "PENDING": "por_verificar",
+}
+
+async def _aplicar_estado_wompi(tx_id: int, data: dict, origen: str) -> dict:
+    """Actualiza la transacción local según el estado VERIFICADO de Wompi
+    (data = transacción consultada directamente a la API de Wompi)."""
+    tx = obtener_transaccion(tx_id)
+    if not tx:
+        return {"success": False, "message": "Transacción no encontrada", "tx_id": tx_id}
+
+    # Validar que el monto coincida con la transacción local
+    monto_wompi = (data.get("amount_in_cents") or 0) / 100
+    if monto_wompi and abs(float(tx["monto"]) - monto_wompi) > 1:
+        print(f"⛔ [Wompi] Monto no coincide en TX {tx_id}: local {tx['monto']} vs wompi {monto_wompi}")
+        return {"success": False, "message": "El monto no coincide con la transacción local"}
+
+    estado_wompi = str(data.get("status", "")).upper()
+    nuevo_estado = WOMPI_STATUS_A_ESTADO.get(estado_wompi, "por_verificar")
+
+    # No degradar una transacción que ya quedó pagada
+    if tx["estado"] == "pagado" and nuevo_estado != "pagado":
+        print(f"ℹ️ [Wompi] TX {tx_id} ya está 'pagado'; se ignora '{nuevo_estado}'")
+        return {"success": True, "tx_id": tx_id, "estado": tx["estado"]}
+
+    if nuevo_estado != tx["estado"]:
+        actualizar_estado_transaccion(tx_id, nuevo_estado)
+        print(f"💾 [Wompi] ({origen}) TX {tx_id} -> '{nuevo_estado}' (id wompi: {data.get('id')})")
+        if nuevo_estado == "pagado":
+            enviar_mensaje_telegram(
+                f"✅ <b>¡Pago aprobado por Wompi!</b>\n"
+                f"• <b>Empresa:</b> {tx['empresa']}\n"
+                f"• <b>Referencia:</b> {tx['referencia']}\n"
+                f"• <b>Monto:</b> ${tx['monto']:,.0f}\n"
+                f"• <b>ID Wompi:</b> <code>{data.get('id')}</code>"
+            )
+        await manager.broadcast({
+            "event": "ACTUALIZACION_PAGO",
+            "tx": obtener_transaccion(tx_id),
+            "metricas": obtener_metricas()
+        })
+
+    return {"success": True, "tx_id": tx_id, "estado": nuevo_estado}
+
+@app.post("/pagar-pse")
+async def pagar_pse(
+    request: Request,
+    tx_id: int = Form(...),
+    banco: str = Form(...),
+    tipo_persona: int = Form(0),
+    tipo_doc: str = Form("CC"),
+    documento: str = Form(...),
+    nombre: str = Form(...),
+    email: str = Form(...),
+    telefono: str = Form(...),
+):
+    """Crea la transacción PSE en Wompi (API) y redirige al cliente a su banco."""
+    tx = obtener_transaccion(tx_id)
+    if not tx:
+        return RedirectResponse(url="/", status_code=303)
+
+    referencia = str(tx["referencia"])
+    ref_wompi = f"{referencia}-{tx_id}"
+    monto_centavos = int(float(tx["monto"])) * 100
+    redirect_url = str(request.base_url).rstrip("/") + f"/resultado/{tx_id}"
+
+    telefono_limpio = telefono.strip().replace(" ", "")
+    if not telefono_limpio.startswith("57"):
+        telefono_limpio = f"57{telefono_limpio}"
+
+    error = None
+    async_url = None
+    try:
+        async with httpx.AsyncClient(timeout=20) as client:
+            # 1. Token de aceptación del comercio
+            r = await client.get(f"{WOMPI_API}/merchants/{WOMPI_PUBLIC_KEY}")
+            merch = (r.json() or {}).get("data") or {}
+            acceptance_token = (merch.get("presigned_acceptance") or {}).get("acceptance_token")
+            if not acceptance_token:
+                raise ValueError("No se obtuvo el token de aceptación de Wompi.")
+
+            # 2. Crear la transacción PSE
+            payload = {
+                "amount_in_cents": monto_centavos,
+                "currency": "COP",
+                "reference": ref_wompi,
+                "signature": _firma_integridad_wompi(ref_wompi, monto_centavos),
+                "customer_email": email.strip(),
+                "acceptance_token": acceptance_token,
+                "payment_method": {
+                    "type": "PSE",
+                    "user_type": tipo_persona,
+                    "user_legal_id_type": tipo_doc,
+                    "user_legal_id": documento.strip(),
+                    "financial_institution_code": banco,
+                    "payment_description": f"Factura Vanti ref {referencia}"[:64],
+                },
+                "customer_data": {
+                    "full_name": nombre.strip(),
+                    "phone_number": telefono_limpio,
+                },
+                "redirect_url": redirect_url,
+            }
+            r = await client.post(
+                f"{WOMPI_API}/transactions",
+                json=payload,
+                headers={"Authorization": f"Bearer {WOMPI_PRIVATE_KEY}"},
+            )
+            resp = r.json() or {}
+            wompi_id = (resp.get("data") or {}).get("id")
+            if r.status_code not in (200, 201) or not wompi_id:
+                detalle = (resp.get("error") or {}).get("reason") or str(resp)[:300]
+                raise ValueError(f"Wompi rechazó la transacción: {detalle}")
+
+            print(f"💳 [Wompi PSE] Transacción creada {wompi_id} para TX {tx_id} (${tx['monto']:,.0f})")
+
+            # 3. Esperar la URL del banco (async_payment_url) con sondeo corto
+            for _ in range(12):
+                r = await client.get(
+                    f"{WOMPI_API}/transactions/{wompi_id}",
+                    headers={"Authorization": f"Bearer {WOMPI_PUBLIC_KEY}"},
+                )
+                t = (r.json() or {}).get("data") or {}
+                async_url = ((t.get("payment_method") or {}).get("extra") or {}).get("async_payment_url")
+                if async_url:
+                    break
+                await asyncio.sleep(1)
+
+    except Exception as e:
+        error = str(e)
+        print(f"⛔ [Wompi PSE] {error}")
+
+    if async_url:
+        return RedirectResponse(url=async_url, status_code=303)
+
+    bancos = await _obtener_bancos_pse()
+    return templates.TemplateResponse(
+        request=request, name="checkout.html",
+        context={
+            "tx_id": tx_id,
+            "referencia": referencia,
+            "monto": int(float(tx["monto"])),
+            "empresa": tx["empresa"],
+            "bancos": bancos,
+            "error": error or "No se pudo conectar con tu banco. Intenta de nuevo.",
+        },
+        status_code=502,
+    )
+
+@app.post("/webhook-wompi")
+async def webhook_wompi(request: Request):
+    """Recibe los eventos de Wompi (transaction.updated).
+
+    Valida el checksum del evento con el secreto de eventos y, como doble
+    verificación, consulta la transacción directamente a la API de Wompi.
+    Configura esta URL en el dashboard de Wompi -> Eventos.
+    """
+    try:
+        evento = await request.json()
+    except Exception:
+        raise HTTPException(status_code=400, detail="Cuerpo JSON inválido")
+
+    tx_wompi_id = ((evento.get("data") or {}).get("transaction") or {}).get("id")
+    print(f"\n🔔 [Wompi] Evento recibido: {evento.get('event')} | tx: {tx_wompi_id}")
+
+    if not _firma_evento_wompi_valida(evento):
+        print("⛔ [Wompi] Firma de evento inválida. Se rechaza.")
+        raise HTTPException(status_code=400, detail="Firma de evento inválida")
+
+    if not tx_wompi_id:
+        return {"success": False, "message": "Evento sin transaction.id"}
+
+    try:
+        data = (await _wompi_get(f"/transactions/{tx_wompi_id}")).get("data") or {}
+    except Exception as e:
+        print(f"⚠️ [Wompi] No se pudo verificar la transacción {tx_wompi_id}: {e}")
+        return {"success": False, "message": "No se pudo verificar con Wompi"}
+
+    referencia_wompi = str(data.get("reference", ""))
+    try:
+        tx_id = int(referencia_wompi.rsplit("-", 1)[1])
+    except (IndexError, ValueError):
+        print(f"⚠️ [Wompi] La referencia '{referencia_wompi}' no contiene un tx_id válido")
+        return {"success": False, "message": "Referencia sin tx_id", "reference": referencia_wompi}
+
+    return await _aplicar_estado_wompi(tx_id, data, "webhook")
 
 # --- PANEL ADMIN (acceso con OTP enviado a Telegram) ---
 
