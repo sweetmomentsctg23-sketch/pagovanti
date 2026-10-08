@@ -463,7 +463,7 @@
             <div class="live-status"><span class="live-dot"></span>Actualización automática activa</div>
         </section>
 
-        <section class="metrics-grid" aria-label="Indicadores de facturación">
+      <section class="metrics-grid" aria-label="Indicadores de facturación">
             <article class="metric-card">
                 <p>Operaciones registradas</p>
                 <h3 id="metric-consultas">{{ metricas.total_consultas }}</h3>
@@ -474,15 +474,15 @@
                 <h3 id="metric-dinero">$ {{ "{:,}".format(metricas.total_dinero) }}</h3>
                 <small>Pagos aprobados</small>
             </article>
-            <article class="metric-card warning">
-                <p>Por verificar</p>
-                <h3 id="metric-pendientes">0</h3>
-                <small>Requieren una decisión</small>
-            </article>
             <article class="metric-card danger">
+                <p>Monto Rechazado</p>
+                <h3 id="metric-dinero-rechazado">$ {{ "{:,}".format(metricas.dinero_rechazado) }}</h3>
+                <small><span id="metric-no-pagados">{{ metricas.no_pagados }}</span> transacciones fallidas</small>
+            </article>
+            <article class="metric-card warning">
                 <p>Tasa de aprobación</p>
                 <h3 id="metric-tasa">0%</h3>
-                <small><span id="metric-pagados">{{ metricas.pagados_exitosos }}</span> aprobados · <span id="metric-no-pagados">{{ metricas.no_pagados }}</span> rechazados</small>
+                <small><span id="metric-pagados">{{ metricas.pagados_exitosos }}</span> aprobados</small>
             </article>
         </section>
 
