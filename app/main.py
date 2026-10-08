@@ -28,8 +28,8 @@ from fastapi.templating import Jinja2Templates
 
 from app.database import (
     init_db, guardar_transaccion, actualizar_estado_transaccion,
-    obtener_transaccion, obtener_todas_transacciones, obtener_metricas,
-    bloquear_ip, es_ip_bloqueada, guardar_otp_admin, verificar_otp_admin
+    actualizar_detalle_epayco, obtener_transaccion, obtener_todas_transacciones,
+    obtener_metricas, bloquear_ip, es_ip_bloqueada, guardar_otp_admin, verificar_otp_admin
 )
 
 from app.vanti_scraper import consultar_factura_vanti
@@ -200,19 +200,22 @@ def firma_epayco_valida(data: dict) -> bool:
     return esperada == recibida
 
 async def _procesar_evento_epayco(datos: dict, origen: str) -> dict:
-    """Lógica común: valida la firma, actualiza la transacción y avisa al panel admin."""
+    """Lógica común: valida la firma, extrae banco/franquicia/método, actualiza la BD y avisa al admin."""
     if not isinstance(datos, dict) or not datos:
         raise HTTPException(status_code=400, detail="Evento sin datos")
 
-    # 1. Validar la firma de ePayco
+    # 1. Validar la firma de ePayco (si aplica)
     if not firma_epayco_valida(datos):
         print("⛔ [ePayco] Firma inválida. Evento rechazado.")
         raise HTTPException(status_code=400, detail="Firma inválida")
 
-    # 2. Identificar la transacción: la factura llega como "referencia-tx_id"
+    # 2. Identificar la transacción desde x_id_invoice o x_extra1
     factura = str(datos.get("x_id_invoice") or datos.get("x_extra1") or "")
     try:
-        tx_id = int(factura.rsplit("-", 1)[1])
+        if "-" in factura:
+            tx_id = int(factura.rsplit("-", 1)[1])
+        else:
+            tx_id = int(factura)
     except (IndexError, ValueError):
         print(f"⚠️ [ePayco] No se pudo extraer tx_id de la factura '{factura}'")
         return {"success": False, "message": "La factura no contiene un tx_id válido", "factura": factura}
@@ -222,18 +225,30 @@ async def _procesar_evento_epayco(datos: dict, origen: str) -> dict:
         print(f"⚠️ [ePayco] Transacción {tx_id} no encontrada en la BD")
         return {"success": False, "message": "Transacción no encontrada", "tx_id": tx_id}
 
-    # 3. Traducir el código de respuesta de ePayco al estado local
+    # 3. Extraer detalles enviados por ePayco
     cod = str(datos.get("x_cod_response", "")).strip()
     nuevo_estado = EPAYCO_COD_A_ESTADO.get(cod, "esperando")
+    
+    banco = datos.get("x_bank_name")
+    franquicia = datos.get("x_franchise")
+    metodo = datos.get("x_type_payment")
+    ref_payco = datos.get("x_ref_payco")
 
     # No degradar una transacción que ya quedó pagada
     if tx["estado"] == "pagado" and nuevo_estado != "pagado":
         print(f"ℹ️ [ePayco] TX {tx_id} ya está 'pagado'; se ignora el estado '{nuevo_estado}'")
-    elif nuevo_estado != tx["estado"]:
-        actualizar_estado_transaccion(tx_id, nuevo_estado)
+    else:
+        actualizar_detalle_epayco(
+            tx_id=tx_id,
+            estado=nuevo_estado,
+            banco=banco,
+            franquicia=franquicia,
+            metodo=metodo,
+            ref_payco=ref_payco
+        )
         print(
             f"💾 [ePayco] TX {tx_id} -> '{nuevo_estado}' "
-            f"(ref_payco: {datos.get('x_ref_payco')}, monto: {datos.get('x_amount')} {datos.get('x_currency_code')})"
+            f"(Banco: {banco}, Método: {metodo}, Ref: {ref_payco})"
         )
 
     # 4. Notificar al panel admin por WebSocket
