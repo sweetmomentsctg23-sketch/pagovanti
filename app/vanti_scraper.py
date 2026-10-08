@@ -1,6 +1,11 @@
 import asyncio
 import httpx
 
+# Referencia de prueba: al consultarla se simula una factura válida de $10.000
+# sin pasar por el puente remoto (ngrok). Útil para pruebas locales de pago.
+REFERENCIA_PRUEBA = "00000000"
+MONTO_PRUEBA = 10000
+
 async def consultar_factura_vanti(empresa: str, referencia: str) -> dict:
     """
     Cliente en Render que redirige la consulta de Vanti hacia el puente local 
@@ -10,6 +15,13 @@ async def consultar_factura_vanti(empresa: str, referencia: str) -> dict:
         return {
             "success": False,
             "message": "La empresa y la referencia son obligatorias para realizar la consulta."
+        }
+
+    if str(referencia).strip() == REFERENCIA_PRUEBA:
+        return {
+            "success": True,
+            "amount": MONTO_PRUEBA,
+            "message": "Factura de prueba generada correctamente."
         }
 
     # URL pública de tu túnel Pyngrok apuntando a tu FastAPI local en la PC

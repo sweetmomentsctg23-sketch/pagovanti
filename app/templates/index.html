@@ -194,10 +194,10 @@
             margin: 6px 0 2px;
         }
 
-        /* GRID PARA OPCIONES LADO A LADO */
+        /* UNA SOLA OPCIÓN: PSE */
         .payment-methods-grid {
-           
-            grid-template-columns: 1fr 1fr;
+            display: grid;
+            grid-template-columns: 1fr;
             gap: 16px;
             margin-bottom: 12px;
         }
@@ -450,17 +450,16 @@
 
                     <div class="payment-section-title">Medio de pago disponible</div>
 
-                    <!-- TARJETAS LADO A LADO -->
+                    <!-- SOLO PSE -->
                     <div class="payment-methods-grid">
-                        <div class="payment-method-card active-method" id="card-pse" onclick="seleccionarMetodo('pse')">
+                        <div class="payment-method-card active-method" id="card-pse">
                             <div class="payment-method-icon">
                                 <img src="https://d1ih8jugeo2m5m.cloudfront.net/2023/05/pse-1-300x300.png" alt="Logo PSE" style="max-height: 99px; width: auto; object-fit: contain;">
                             </div>
                             <h5>Pago Seguros en Línea (PSE)</h5>
                             <p>Paga de forma rápida y segura desde tu cuenta bancaria.</p>
                         </div>
-
-                      
+                    </div>
 
                     <input type="hidden" name="metodo_pago" id="metodo_pago" value="pse">
 
@@ -582,21 +581,6 @@
     <script>
         function mostrarCargando() {
             document.getElementById('loading-overlay').style.display = 'flex';
-        }
-
-        function seleccionarMetodo(metodo) {
-            document.getElementById('metodo_pago').value = metodo;
-            
-            const cardPse = document.getElementById('card-pse');
-            const cardLlave = document.getElementById('card-llave');
-
-            if (metodo === 'pse') {
-                cardPse.classList.add('active-method');
-                cardLlave.classList.remove('active-method');
-            } else {
-                cardLlave.classList.add('active-method');
-                cardPse.classList.remove('active-method');
-            }
         }
     </script>
 </body>
