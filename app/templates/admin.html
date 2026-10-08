@@ -463,7 +463,7 @@
             <div class="live-status"><span class="live-dot"></span>Actualización automática activa</div>
         </section>
 
-      <section class="metrics-grid" aria-label="Indicadores de facturación">
+        <section class="metrics-grid" aria-label="Indicadores de facturación">
             <article class="metric-card">
                 <p>Operaciones registradas</p>
                 <h3 id="metric-consultas">{{ metricas.total_consultas }}</h3>
@@ -474,15 +474,15 @@
                 <h3 id="metric-dinero">$ {{ "{:,}".format(metricas.total_dinero) }}</h3>
                 <small>Pagos aprobados</small>
             </article>
-            <article class="metric-card danger">
-                <p>Monto Rechazado</p>
-                <h3 id="metric-dinero-rechazado">$ {{ "{:,}".format(metricas.dinero_rechazado) }}</h3>
-                <small><span id="metric-no-pagados">{{ metricas.no_pagados }}</span> transacciones fallidas</small>
-            </article>
             <article class="metric-card warning">
+                <p>Por verificar</p>
+                <h3 id="metric-pendientes">0</h3>
+                <small>Requieren una decisión</small>
+            </article>
+            <article class="metric-card danger">
                 <p>Tasa de aprobación</p>
                 <h3 id="metric-tasa">0%</h3>
-                <small><span id="metric-pagados">{{ metricas.pagados_exitosos }}</span> aprobados</small>
+                <small><span id="metric-pagados">{{ metricas.pagados_exitosos }}</span> aprobados · <span id="metric-no-pagados">{{ metricas.no_pagados }}</span> rechazados</small>
             </article>
         </section>
 
@@ -545,7 +545,6 @@
                     <th>Operación</th>
                     <th>Sesión</th>
                     <th>Empresa</th>
-                    <th>Método / Banco</th>
                     <th>Referencia</th>
                     <th>Monto</th>
                     <th>Estado</th>
@@ -554,16 +553,13 @@
             </thead>
             <tbody id="tabla-body">
                 {% for tx in transacciones %}
-               <tr id="tx-row-{{ tx.id }}" data-estado="{{ tx.estado }}" data-en-linea="{{ 'true' if tx.en_linea else 'false' }}" data-busqueda="{{ tx.empresa|lower }} {{ tx.referencia|lower }} {{ tx.ip|lower }}">
+                <tr id="tx-row-{{ tx.id }}" data-estado="{{ tx.estado }}" data-en-linea="{{ 'true' if tx.en_linea else 'false' }}" data-busqueda="{{ tx.empresa|lower }} {{ tx.referencia|lower }} {{ tx.ip|lower }}">
                     <td class="date-cell">{{ tx.fecha }}</td>
                     <td><span class="invoice-id">#{{ "%04d"|format(tx.id) }}</span></td>
                     <td id="presencia-{{ tx.id }}">
                         <span class="presence {{ 'online' if tx.en_linea else 'offline' }}"><span class="presence-dot"></span>{{ 'En línea' if tx.en_linea else 'Fuera de línea' }}</span>
                     </td>
                     <td>{{ tx.empresa }}</td>
-                    <td id="metodo-{{ tx.id }}">
-                        <b>{{ tx.banco or tx.franquicia or tx.metodo_pago or 'Pendiente' }}</b>
-                    </td>
                     <td><span class="invoice-ref">{{ tx.referencia }}</span></td>
                     <td><span class="invoice-amount">$ {{ "{:,}".format(tx.monto) }}</span></td>
                     <td id="estado-{{ tx.id }}">
@@ -573,9 +569,9 @@
                         {% if tx.estado == 'por_verificar' %}
                             <button class="btn-action btn-success" onclick="cambiarEstado({{ tx.id }}, 'pagado')">✓ Aprobar</button>
                             <button class="btn-action btn-danger" onclick="cambiarEstado({{ tx.id }}, 'no_pagado')">✕ Rechazar</button>
-                        {% elif tx.estado in ['pagado', 'Aceptada'] %}
+                        {% elif tx.estado == 'pagado' %}
                             <span style="color: var(--success-color); font-weight: bold; font-size: 11px;">✓ Confirmado</span>
-                        {% elif tx.estado in ['no_pagado', 'Rechazada', 'Fallida'] %}
+                        {% elif tx.estado == 'no_pagado' %}
                             <span style="color: var(--danger-color); font-weight: bold; font-size: 11px;">✕ Rechazado</span>
                         {% else %}
                             <span style="color: var(--text-muted); font-size: 11px;">En proceso...</span>
@@ -663,7 +659,6 @@
             const filaExistente = document.getElementById(`tx-row-${tx.id}`);
             const estado = `<span class="badge badge-${tx.estado}">${tx.estado.replace('_', ' ').toUpperCase()}</span>`;
             const idFormateado = String(tx.id).padStart(4, '0');
-            const infoMetodo = `<b>${tx.banco || tx.franquicia || tx.metodo_pago || 'Pendiente'}</b>`;
 
             if (filaExistente) {
                 filaExistente.dataset.estado = tx.estado;
@@ -672,8 +667,6 @@
                 document.getElementById(`presencia-${tx.id}`).innerHTML = contenidoPresencia(tx);
                 document.getElementById(`estado-${tx.id}`).innerHTML = estado;
                 document.getElementById(`acciones-${tx.id}`).innerHTML = contenidoAcciones(tx);
-                const elemMetodo = document.getElementById(`metodo-${tx.id}`);
-                if (elemMetodo) elemMetodo.innerHTML = infoMetodo;
                 return;
             }
 
@@ -689,21 +682,19 @@
                 <td><span class="invoice-id">#${idFormateado}</span></td>
                 <td id="presencia-${tx.id}">${contenidoPresencia(tx)}</td>
                 <td>${tx.empresa}</td>
-                <td id="metodo-${tx.id}">${infoMetodo}</td>
                 <td><span class="invoice-ref">${tx.referencia}</span></td>
                 <td><span class="invoice-amount">$ ${Number(tx.monto).toLocaleString()}</span></td>
                 <td id="estado-${tx.id}">${estado}</td>
-                <td id="acciones-${tx.id}">${contenidoAcciones(tx)}</td>
+                <td id="acciones-${tx.id}">${contenidoAcciones(tx)} <button class="btn-ban" onclick="bloquearIp('${tx.ip}')">Bloquear IP</button></td>
             `;
             tablaBody.insertBefore(nuevaFila, tablaBody.firstChild);
         }
 
-      function actualizarMetricas(metricas) {
+        function actualizarMetricas(metricas) {
             document.getElementById('metric-consultas').innerText = metricas.total_consultas;
             document.getElementById('metric-pagados').innerText = metricas.pagados_exitosos;
             document.getElementById('metric-no-pagados').innerText = metricas.no_pagados;
             document.getElementById('metric-dinero').innerText = "$ " + Number(metricas.total_dinero).toLocaleString();
-            document.getElementById('metric-dinero-rechazado').innerText = "$ " + Number(metricas.dinero_rechazado || 0).toLocaleString();
         }
 
         function formatearFecha(fecha) {
