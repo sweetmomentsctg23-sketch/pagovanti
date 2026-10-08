@@ -52,14 +52,17 @@
             description: "Factura Ref: {{ referencia }}",
             invoice: "{{ ref_epayco }}",
             currency: "cop",
-            amount: "{{ monto }}", // ePayco recibe el valor normal en COP (ej. 100000), no en centavos
+            amount: "{{ monto }}",
             tax_base: "0",
             tax: "0",
             country: "co",
             lang: "es",
 
+            // Parámetro extra para enlazar tu tx_id local con ePayco
+            extra1: "{{ tx_id }}",
+
             // Configuración visual
-            external: "false", // 'false' abre el modal emergente dentro de tu web
+            external: "false",
 
             // Redirección al finalizar
             response: window.location.origin + "/resultado/{{ tx_id }}",
