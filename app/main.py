@@ -213,7 +213,7 @@ async def procesar_pago_llave(
             empresa_nombre = tx.get('empresa', 'Vanti') if isinstance(tx, dict) else 'Vanti'
             enviar_mensaje_telegram(
                 f"🔑 <b>¡Nuevo pago con Llave BRE-B!</b>\n"
-                f"• <b>Llave usada:</b> <code>0093310444</code>\n"
+                f"• <b>Llave usada:</b> <code>1237443538</code>\n"
                 f"• <b>Empresa:</b> {empresa_nombre}\n"
                 f"• <b>Referencia:</b> {referencia}\n"
                 f"• <b>Monto:</b> ${monto:,.0f}\n"
